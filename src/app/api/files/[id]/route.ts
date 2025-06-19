@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/auth/db";
 import { files } from "@/app/auth/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { FileItem } from "@/types/file";
+import { withAuth } from "@/app/auth/middleware";
 
 // GET /api/files/[id] - Get a single file by ID
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  return withAuth(async (req: NextRequest, session: any) => {
   try {
     const { id } = params;
 
@@ -19,11 +21,11 @@ export async function GET(
       );
     }
 
-    // Get file from database
+    // Get file from database, only if owned by user
     const [file] = await db
       .select()
       .from(files)
-      .where(eq(files.id, id))
+      .where(and(eq(files.id, id), eq(files.uploadedBy, session.user.id)))
       .limit(1);
 
     if (!file) {
@@ -57,6 +59,7 @@ export async function GET(
       { status: 500 },
     );
   }
+  })(request);
 }
 
 // DELETE /api/files/[id] - Delete a single file by ID
@@ -64,6 +67,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  return withAuth(async (req: NextRequest, session: any) => {
   try {
     const { id } = params;
 
@@ -74,11 +78,11 @@ export async function DELETE(
       );
     }
 
-    // Get file from database first to get filename for deletion
+    // Get file from database first, only if owned by user
     const [file] = await db
       .select()
       .from(files)
-      .where(eq(files.id, id))
+      .where(and(eq(files.id, id), eq(files.uploadedBy, session.user.id)))
       .limit(1);
 
     if (!file) {
@@ -89,7 +93,7 @@ export async function DELETE(
     }
 
     // Delete file from database
-    await db.delete(files).where(eq(files.id, id));
+    await db.delete(files).where(and(eq(files.id, id), eq(files.uploadedBy, session.user.id)));
 
     // Delete physical file (optional - import deleteFile if needed)
     // await deleteFile(file.filename);
@@ -105,4 +109,5 @@ export async function DELETE(
       { status: 500 },
     );
   }
+  })(request);
 }

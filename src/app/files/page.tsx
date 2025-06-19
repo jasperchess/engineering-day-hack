@@ -4,24 +4,56 @@ import React, { useState, useEffect } from "react";
 import FileList from "@/components/FileList";
 import FileDownload from "@/components/FileDownload";
 import { FileItem } from "@/types/file";
+import { useSession } from "@/app/auth/client";
+import { useRouter } from "next/navigation";
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push('/login');
+    }
+  }, [session, isPending, router]);
+
+  // Show loading while checking authentication
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null;
+  }
 
   // Load files from API
   useEffect(() => {
     const loadFiles = async () => {
+      if (!session) return;
+      
       try {
         setLoading(true);
         const response = await fetch("/api/files");
 
         if (!response.ok) {
-          throw new Error(
-            `Failed to fetch files: ${response.status} ${response.statusText}`,
-          );
+          if (response.status === 401) {
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to fetch files');
         }
 
         const data = await response.json();
@@ -53,8 +85,10 @@ export default function FilesPage() {
       }
     };
 
-    loadFiles();
-  }, []);
+    if (session) {
+      loadFiles();
+    }
+  }, [session, router]);
 
   const handleFileSelect = (file: FileItem) => {
     setSelectedFile(file);
@@ -69,12 +103,22 @@ export default function FilesPage() {
   const handleFileDelete = async (fileId: string) => {
     if (confirm("Are you sure you want to delete this file?")) {
       try {
-        // Simulate API call to delete file
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setFiles((prev) => prev.filter((f) => f.id !== fileId));
-        console.log("File deleted:", fileId);
-      } catch {
-        alert("Failed to delete file");
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete file');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+          setFiles(prev => prev.filter(f => f.id !== fileId));
+        } else {
+          throw new Error(data.error || 'Failed to delete file');
+        }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to delete file');
       }
     }
   };
