@@ -128,12 +128,6 @@ export default function FileUpload({
       setValidationErrors(errors);
 
       if (validFiles.length === 0) {
-        fileActivityLogger.logBatchOperation(
-          COMPONENT_NAME,
-          "file-upload-batch-failed",
-          fileArray.map((f) => f.name),
-          false,
-        );
         return;
       }
 
