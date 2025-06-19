@@ -57,7 +57,7 @@ export default function UploadPage() {
       <div className="absolute top-20 left-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
       <div className="absolute bottom-20 right-10 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
       {/* Header */}
-      <Header currentPage="Upload" showUploadButton={false} />
+      <Header currentPage="Upload" showUploadButton={false} showSearchBar={true} />
 
       {/* Main Content */}
       <div className="py-8 relative z-10">

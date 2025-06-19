@@ -4,13 +4,15 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "@/app/auth/client";
+import SearchBar from "./SearchBar";
 
 interface HeaderProps {
   currentPage?: string;
   showUploadButton?: boolean;
+  showSearchBar?: boolean;
 }
 
-export default function Header({ currentPage = "Files", showUploadButton = true }: HeaderProps) {
+export default function Header({ currentPage = "Files", showUploadButton = true, showSearchBar = true }: HeaderProps) {
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -70,7 +72,15 @@ export default function Header({ currentPage = "Files", showUploadButton = true 
               )}
             </nav>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
+            {/* Search Bar */}
+            {showSearchBar && (
+              <SearchBar 
+                placeholder="Search by filename..." 
+                className="max-w-md"
+              />
+            )}
+            
             {/* User info */}
             {session?.user && (
               <div className="flex items-center space-x-3">

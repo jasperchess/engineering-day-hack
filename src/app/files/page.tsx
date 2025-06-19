@@ -30,7 +30,9 @@ function FilesPageContent() {
 
       try {
         setLoading(true);
-        const response = await fetch("/api/files");
+        const searchQuery = searchParams.get("search");
+        const url = searchQuery ? `/api/files?search=${encodeURIComponent(searchQuery)}` : "/api/files";
+        const response = await fetch(url);
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -160,6 +162,7 @@ function FilesPageContent() {
         <Header
           currentPage={selectedFile.originalName}
           showUploadButton={true}
+          showSearchBar={true}
         />
 
         <div className="py-8 relative z-10">
@@ -182,7 +185,7 @@ function FilesPageContent() {
       <div className="absolute bottom-20 right-10 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
 
       {/* Header */}
-      <Header currentPage="Files" showUploadButton={true} />
+      <Header currentPage="Files" showUploadButton={true} showSearchBar={true} />
 
       {/* Main Content */}
       <div className="py-8 relative z-10">

@@ -10,9 +10,9 @@ import {
   getFileTypeCategory,
 } from "@/utils/fileUtils";
 import { FileUploadResponse, FileListResponse } from "@/types/file";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, like } from "drizzle-orm";
 import { withAuth } from "@/app/auth/middleware";
-import { uploadRateLimit, getClientIdentifier } from "@/utils/rateLimit";
+import { uploadRateLimit, apiRateLimit, getClientIdentifier } from "@/utils/rateLimit";
 import { fileActivityLogger } from "@/utils/logging";
 
 // POST /api/files - Upload a new file
@@ -253,12 +253,33 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
   }
 });
 
-// GET /api/files - Get user's files
+// GET /api/files - Get user's files with optional search
 export const GET = withAuth(async (request: NextRequest, session: any) => {
   const requestStartTime = Date.now();
   const url = new URL(request.url);
   const limit = parseInt(url.searchParams.get("limit") || "50");
   const offset = parseInt(url.searchParams.get("offset") || "0");
+  const search = url.searchParams.get("search")?.trim();
+
+  // Check rate limit for API requests (especially search)
+  const identifier = getClientIdentifier(request, session.user?.id);
+  const rateLimitResult = apiRateLimit.check(identifier);
+
+  if (!rateLimitResult.allowed) {
+    const resetTime = new Date(rateLimitResult.resetTime).toISOString();
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Too many requests. Try again after ${resetTime}`,
+        files: [],
+        total: 0,
+      } as FileListResponse,
+      {
+        status: 429,
+        headers: apiRateLimit.getHeaders(rateLimitResult),
+      }
+    );
+  }
 
   // Log API request
   fileActivityLogger.logApiRequest("FilesAPI", "GET", "/api/files", {
@@ -266,6 +287,7 @@ export const GET = withAuth(async (request: NextRequest, session: any) => {
     details: {
       limit,
       offset,
+      search: search || null,
       userAgent: request.headers.get("user-agent"),
       origin: request.headers.get("origin"),
       timestamp: new Date().toISOString(),
@@ -273,20 +295,45 @@ export const GET = withAuth(async (request: NextRequest, session: any) => {
   });
 
   try {
-    // Get files from database with pagination, filtered by user
-    const userFiles = await db
-      .select()
-      .from(files)
-      .where(eq(files.uploadedBy, session.user.id))
-      .limit(limit)
-      .offset(offset)
-      .orderBy(desc(files.uploadDate));
+    // Build query with search conditions if provided
+    let userFiles;
+    let totalCountResult;
 
-    // Get total count for user's files
-    const totalCountResult = await db
-      .select({ count: count() })
-      .from(files)
-      .where(eq(files.uploadedBy, session.user.id));
+    if (search) {
+      const searchPattern = `%${search}%`;
+      
+      // Get files with search filter (filename only)
+      userFiles = await db
+        .select()
+        .from(files)
+        .where(eq(files.uploadedBy, session.user.id))
+        .where(like(files.originalName, searchPattern))
+        .limit(limit)
+        .offset(offset)
+        .orderBy(desc(files.uploadDate));
+
+      // Get total count with search filter (filename only)
+      totalCountResult = await db
+        .select({ count: count() })
+        .from(files)
+        .where(eq(files.uploadedBy, session.user.id))
+        .where(like(files.originalName, searchPattern));
+    } else {
+      // Get files without search filter
+      userFiles = await db
+        .select()
+        .from(files)
+        .where(eq(files.uploadedBy, session.user.id))
+        .limit(limit)
+        .offset(offset)
+        .orderBy(desc(files.uploadDate));
+
+      // Get total count without search filter
+      totalCountResult = await db
+        .select({ count: count() })
+        .from(files)
+        .where(eq(files.uploadedBy, session.user.id));
+    }
 
     const fileList = userFiles.map((fileRecord) => ({
       id: fileRecord.id,
@@ -312,6 +359,8 @@ export const GET = withAuth(async (request: NextRequest, session: any) => {
         totalFiles: totalFiles,
         limit,
         offset,
+        search: search || null,
+        isSearchQuery: !!search,
         success: true,
         duration: requestDuration,
         timestamp: new Date().toISOString(),
@@ -322,7 +371,10 @@ export const GET = withAuth(async (request: NextRequest, session: any) => {
       success: true,
       files: fileList,
       total: totalFiles,
-    } as FileListResponse);
+      search: search || null,
+    } as FileListResponse, {
+      headers: apiRateLimit.getHeaders(rateLimitResult),
+    });
   } catch (error) {
     const requestDuration = Date.now() - requestStartTime;
 
@@ -339,6 +391,7 @@ export const GET = withAuth(async (request: NextRequest, session: any) => {
           stack: error instanceof Error ? error.stack : undefined,
           limit,
           offset,
+          search: search || null,
           duration: requestDuration,
           timestamp: new Date().toISOString(),
         },
