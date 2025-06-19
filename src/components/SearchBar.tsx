@@ -25,35 +25,33 @@ export default function SearchBar({
     }
   }, [searchParams]);
 
-  // Debounced search function with auto-search as typing
-  const debouncedSearch = useCallback(
-    (searchQuery: string) => {
-      const timeoutId = setTimeout(() => {
+  // Debounced search using useEffect with cleanup
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query.trim()) {
         setLoading(true);
-        
+
         // Navigate to files page with search query
         const params = new URLSearchParams();
-        if (searchQuery.trim()) {
-          params.set("search", searchQuery.trim());
-        }
-        
-        const url = `/files${params.toString() ? `?${params.toString()}` : ''}`;
-        router.push(url);
-        
-        setTimeout(() => setLoading(false), 200);
-      }, 1000); // 1 second debounce delay
+        params.set("search", query.trim());
 
-      return () => clearTimeout(timeoutId);
-    },
-    [router]
-  );
+        const url = `/files?${params.toString()}`;
+        router.push(url);
+
+        setTimeout(() => setLoading(false), 200);
+      } else {
+        // If query is empty, navigate to files page without search params
+        router.push("/files");
+      }
+    }, 1000); // 1 second debounce delay
+
+    // Cleanup function to cancel the timeout
+    return () => clearTimeout(timeoutId);
+  }, [query, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
     setQuery(newQuery);
-    
-    // Trigger debounced search
-    debouncedSearch(newQuery);
   };
 
   const handleClear = () => {
@@ -108,11 +106,7 @@ export default function SearchBar({
               onClick={handleClear}
               className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition-colors"
             >
-              <svg
-                className="h-4 w-4"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
