@@ -74,6 +74,39 @@ export const files = sqliteTable("files", {
   updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
 });
 
+export const sharedFiles = sqliteTable("sharedFiles", {
+  id: text("id").primaryKey(),
+  fileId: text("fileId")
+    .notNull()
+    .references(() => files.id, { onDelete: "cascade" }),
+  shareCode: text("shareCode").notNull().unique(),
+  sharedBy: text("sharedBy")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  permissions: text("permissions", { enum: ["view", "download", "both"] })
+    .notNull()
+    .default("both"),
+  maxDownloads: integer("maxDownloads"),
+  downloadCount: integer("downloadCount").notNull().default(0),
+  viewCount: integer("viewCount").notNull().default(0),
+  expiresAt: integer("expiresAt", { mode: "timestamp" }).notNull(),
+  isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
+});
+
+export const shareAccessLog = sqliteTable("shareAccessLog", {
+  id: text("id").primaryKey(),
+  sharedFileId: text("sharedFileId")
+    .notNull()
+    .references(() => sharedFiles.id, { onDelete: "cascade" }),
+  accessType: text("accessType", { enum: ["view", "download"] }).notNull(),
+  ipAddress: text("ipAddress"),
+  userAgent: text("userAgent"),
+  referrer: text("referrer"),
+  accessedAt: integer("accessedAt", { mode: "timestamp" }).notNull(),
+});
+
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Session = typeof session.$inferSelect;
@@ -84,3 +117,7 @@ export type Verification = typeof verification.$inferSelect;
 export type NewVerification = typeof verification.$inferInsert;
 export type File = typeof files.$inferSelect;
 export type NewFile = typeof files.$inferInsert;
+export type SharedFile = typeof sharedFiles.$inferSelect;
+export type NewSharedFile = typeof sharedFiles.$inferInsert;
+export type ShareAccessLog = typeof shareAccessLog.$inferSelect;
+export type NewShareAccessLog = typeof shareAccessLog.$inferInsert;
