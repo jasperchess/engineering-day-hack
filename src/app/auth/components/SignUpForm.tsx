@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signUp } from "../client";
+import { signUp, signIn } from "../client";
 
 export default function SignUpForm() {
   const [name, setName] = useState("");
@@ -10,13 +10,11 @@ export default function SignUpForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setSuccess(false);
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -31,17 +29,34 @@ export default function SignUpForm() {
     }
 
     try {
-      const result = await signUp.email({
+      // First, create the account
+      const signUpResult = await signUp.email({
         email,
         password,
         name,
       });
 
-      if (result.error) {
-        setError(result.error.message || "Failed to create account");
-      } else {
-        setSuccess(true);
+      if (signUpResult.error) {
+        setError(signUpResult.error.message || "Failed to create account");
+        return;
       }
+
+      // If signup successful, automatically sign in
+      const signInResult = await signIn.email({
+        email,
+        password,
+      });
+
+      if (signInResult.error) {
+        setError(
+          "Account created but failed to sign in. Please try signing in manually.",
+        );
+        return;
+      }
+
+      // Redirect to files page after successful login
+      window.location.href = "/files";
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || "Failed to create account");
@@ -49,24 +64,6 @@ export default function SignUpForm() {
       setIsLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="max-w-md mx-auto p-6 bg-white/10 backdrop-blur-md rounded-lg shadow-2xl border border-white/20">
-        <div className="text-center">
-          <div className="mb-4 p-3 bg-green-500/20 border border-green-400/50 text-green-300 rounded backdrop-blur-sm">
-            Account created successfully! You can now sign in.
-          </div>
-          <button
-            onClick={() => setSuccess(false)}
-            className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent hover:from-blue-300 hover:to-purple-300 underline"
-          >
-            Back to sign up
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white/10 backdrop-blur-md rounded-lg shadow-2xl border border-white/20">
