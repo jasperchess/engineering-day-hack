@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/auth/db";
-import { files, File as FileRecord } from "@/app/auth/schema";
+import { files } from "@/app/auth/schema";
 import { randomUUID } from "crypto";
 import {
-  validateFile,
+  validateFileStream,
   saveFile,
   generateUniqueFilename,
   getFileUrl,
@@ -20,23 +20,23 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
     // Check rate limit first
     const identifier = getClientIdentifier(request, session.user?.id);
     const rateLimitResult = uploadRateLimit.check(identifier);
-    
+
     if (!rateLimitResult.allowed) {
       const resetTime = new Date(rateLimitResult.resetTime).toISOString();
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: `Rate limit exceeded. Try again after ${resetTime}`,
           rateLimit: {
             remaining: rateLimitResult.remaining,
             resetTime: rateLimitResult.resetTime,
-            total: rateLimitResult.total
-          }
+            total: rateLimitResult.total,
+          },
         } as FileUploadResponse,
-        { 
+        {
           status: 429,
-          headers: uploadRateLimit.getHeaders(rateLimitResult)
-        }
+          headers: uploadRateLimit.getHeaders(rateLimitResult),
+        },
       );
     }
 
@@ -50,8 +50,8 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
       );
     }
 
-    // Validate the file
-    const validationError = validateFile(uploadedFile);
+    // Validate the file with stream validation to prevent spoofing
+    const validationError = await validateFileStream(uploadedFile);
     if (validationError) {
       return NextResponse.json(
         {
@@ -65,8 +65,23 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
     // Generate unique filename
     const filename = generateUniqueFilename(uploadedFile.name);
 
-    // Save file to disk
-    await saveFile(uploadedFile, filename);
+    // Save file to disk with additional stream validation
+    try {
+      await saveFile(uploadedFile, filename);
+    } catch (saveError) {
+      // If save fails due to size validation, return specific error
+      const errorMessage =
+        saveError instanceof Error ? saveError.message : "Failed to save file";
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage.includes("size")
+            ? errorMessage
+            : "File upload failed due to validation error",
+        } as FileUploadResponse,
+        { status: 413 }, // 413 Payload Too Large for size-related errors
+      );
+    }
 
     // Get file URL
     const url = getFileUrl(filename);
@@ -92,28 +107,31 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
       .values(fileRecord)
       .returning();
 
-    return NextResponse.json({
-      success: true,
-      file: {
-        id: insertedFile.id,
-        filename: insertedFile.filename,
-        originalName: insertedFile.originalName,
-        fileSize: insertedFile.fileSize,
-        fileType: insertedFile.fileType,
-        mimeType: insertedFile.mimeType,
-        uploadDate: insertedFile.uploadDate,
-        uploadedBy: insertedFile.uploadedBy,
-        url: insertedFile.url,
-        thumbnailUrl: insertedFile.thumbnailUrl,
+    return NextResponse.json(
+      {
+        success: true,
+        file: {
+          id: insertedFile.id,
+          filename: insertedFile.filename,
+          originalName: insertedFile.originalName,
+          fileSize: insertedFile.fileSize,
+          fileType: insertedFile.fileType,
+          mimeType: insertedFile.mimeType,
+          uploadDate: insertedFile.uploadDate,
+          uploadedBy: insertedFile.uploadedBy,
+          url: insertedFile.url,
+          thumbnailUrl: insertedFile.thumbnailUrl,
+        },
+        rateLimit: {
+          remaining: rateLimitResult.remaining,
+          resetTime: rateLimitResult.resetTime,
+          total: rateLimitResult.total,
+        },
+      } as FileUploadResponse,
+      {
+        headers: uploadRateLimit.getHeaders(rateLimitResult),
       },
-      rateLimit: {
-        remaining: rateLimitResult.remaining,
-        resetTime: rateLimitResult.resetTime,
-        total: rateLimitResult.total
-      }
-    } as FileUploadResponse, {
-      headers: uploadRateLimit.getHeaders(rateLimitResult)
-    });
+    );
   } catch (error) {
     console.error("File upload error:", error);
     return NextResponse.json(

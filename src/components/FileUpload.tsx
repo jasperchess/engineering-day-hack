@@ -93,160 +93,167 @@ export default function FileUpload({
     return null;
   };
 
-  const handleFiles = async (files: FileList) => {
-    const startTime = Date.now();
-    const fileArray = Array.from(files);
-    const errors: FileValidationError[] = [];
-    const validFiles: File[] = [];
+  const handleFiles = useCallback(
+    async (files: FileList) => {
+      const startTime = Date.now();
+      const fileArray = Array.from(files);
+      const errors: FileValidationError[] = [];
+      const validFiles: File[] = [];
 
-    fileActivityLogger.logPerformanceMetric(
-      COMPONENT_NAME,
-      "file-processing-start",
-      startTime,
-      "timestamp",
-    );
+      fileActivityLogger.logPerformanceMetric(
+        COMPONENT_NAME,
+        "file-processing-start",
+        startTime,
+        "timestamp",
+      );
 
-    // Log the batch operation attempt
-    fileActivityLogger.logBatchOperation(
-      COMPONENT_NAME,
-      "file-upload-batch",
-      fileArray.map((f) => f.name),
-      true,
-    );
-
-    // Validate all files
-    fileArray.forEach((file) => {
-      const error = validateFile(file);
-      if (error) {
-        errors.push(error);
-      } else {
-        validFiles.push(file);
-      }
-    });
-
-    setValidationErrors(errors);
-
-    if (validFiles.length === 0) {
+      // Log the batch operation attempt
       fileActivityLogger.logBatchOperation(
         COMPONENT_NAME,
-        "file-upload-batch-failed",
+        "file-upload-batch",
         fileArray.map((f) => f.name),
-        false,
+        true,
       );
-      return;
-    }
 
-    // Log upload start for valid files
-    fileActivityLogger.logUploadStart(COMPONENT_NAME, validFiles);
-
-    setIsUploading(true);
-
-    // Upload valid files
-    for (const file of validFiles) {
-      const uploadStartTime = Date.now();
-
-      try {
-        const progress: FileUploadProgress = {
-          filename: file.name,
-          progress: 0,
-          status: "uploading",
-        };
-
-        setUploadProgress((prev) => [...prev, progress]);
-
-        // Log progress update
-        fileActivityLogger.logUploadProgress(COMPONENT_NAME, file.name, 0);
-
-        // Create FormData for API call
-        const formData = new FormData();
-        formData.append("file", file);
-
-        // Update progress to show upload starting
-        setUploadProgress((prev) =>
-          prev.map((p) =>
-            p.filename === file.name ? { ...p, progress: 50 } : p,
-          ),
-        );
-
-        fileActivityLogger.logUploadProgress(COMPONENT_NAME, file.name, 50);
-
-        // Call the actual API endpoint
-        const response = await fetch("/api/files", {
-          method: "POST",
-          body: formData,
-        });
-
-        const result = await response.json();
-
-        // Update rate limit info
-        if (result.rateLimit) {
-          setRateLimitInfo(result.rateLimit);
+      // Validate all files
+      fileArray.forEach((file) => {
+        const error = validateFile(file);
+        if (error) {
+          errors.push(error);
+        } else {
+          validFiles.push(file);
         }
+      });
 
-        if (!response.ok || !result.success) {
-          // Handle rate limit specifically
-          if (response.status === 429) {
-            const resetDate = new Date(result.rateLimit?.resetTime || Date.now() + 15 * 60 * 1000);
-            throw new Error(`Rate limit exceeded. Try again after ${resetDate.toLocaleTimeString()}`);
-          }
-          throw new Error(result.error || "Upload failed");
-        }
+      setValidationErrors(errors);
 
-        // Mark as completed
-        setUploadProgress((prev) =>
-          prev.map((p) =>
-            p.filename === file.name
-              ? { ...p, status: "completed", progress: 100 }
-              : p,
-          ),
-        );
-
-        // Log successful upload
-        const uploadDuration = Date.now() - uploadStartTime;
-        const fileWithTiming = {
-          ...result.file,
-          uploadStartTime,
-          uploadDuration,
-        };
-
-        fileActivityLogger.logUploadComplete(COMPONENT_NAME, fileWithTiming);
-        fileActivityLogger.logPerformanceMetric(
+      if (validFiles.length === 0) {
+        fileActivityLogger.logBatchOperation(
           COMPONENT_NAME,
-          "upload-duration",
-          uploadDuration,
-          "milliseconds",
+          "file-upload-batch-failed",
+          fileArray.map((f) => f.name),
+          false,
         );
-
-        onUploadComplete?.(result.file);
-      } catch (error) {
-        // Log upload error
-        fileActivityLogger.logUploadError(
-          COMPONENT_NAME,
-          file.name,
-          error instanceof Error ? error : String(error),
-        );
-
-        setUploadProgress((prev) =>
-          prev.map((p) =>
-            p.filename === file.name
-              ? { ...p, status: "error", error: "Upload failed" }
-              : p,
-          ),
-        );
-        onUploadError?.(`Failed to upload ${file.name}`);
+        return;
       }
-    }
 
-    const totalProcessingTime = Date.now() - startTime;
-    fileActivityLogger.logPerformanceMetric(
-      COMPONENT_NAME,
-      "batch-upload-duration",
-      totalProcessingTime,
-      "milliseconds",
-    );
+      // Log upload start for valid files
+      fileActivityLogger.logUploadStart(COMPONENT_NAME, validFiles);
 
-    setIsUploading(false);
-  };
+      setIsUploading(true);
+
+      // Upload valid files
+      for (const file of validFiles) {
+        const uploadStartTime = Date.now();
+
+        try {
+          const progress: FileUploadProgress = {
+            filename: file.name,
+            progress: 0,
+            status: "uploading",
+          };
+
+          setUploadProgress((prev) => [...prev, progress]);
+
+          // Log progress update
+          fileActivityLogger.logUploadProgress(COMPONENT_NAME, file.name, 0);
+
+          // Create FormData for API call
+          const formData = new FormData();
+          formData.append("file", file);
+
+          // Update progress to show upload starting
+          setUploadProgress((prev) =>
+            prev.map((p) =>
+              p.filename === file.name ? { ...p, progress: 50 } : p,
+            ),
+          );
+
+          fileActivityLogger.logUploadProgress(COMPONENT_NAME, file.name, 50);
+
+          // Call the actual API endpoint
+          const response = await fetch("/api/files", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          // Update rate limit info
+          if (result.rateLimit) {
+            setRateLimitInfo(result.rateLimit);
+          }
+
+          if (!response.ok || !result.success) {
+            // Handle rate limit specifically
+            if (response.status === 429) {
+              const resetDate = new Date(
+                result.rateLimit?.resetTime || Date.now() + 15 * 60 * 1000,
+              );
+              throw new Error(
+                `Rate limit exceeded. Try again after ${resetDate.toLocaleTimeString()}`,
+              );
+            }
+            throw new Error(result.error || "Upload failed");
+          }
+
+          // Mark as completed
+          setUploadProgress((prev) =>
+            prev.map((p) =>
+              p.filename === file.name
+                ? { ...p, status: "completed", progress: 100 }
+                : p,
+            ),
+          );
+
+          // Log successful upload
+          const uploadDuration = Date.now() - uploadStartTime;
+          const fileWithTiming = {
+            ...result.file,
+            uploadStartTime,
+            uploadDuration,
+          };
+
+          fileActivityLogger.logUploadComplete(COMPONENT_NAME, fileWithTiming);
+          fileActivityLogger.logPerformanceMetric(
+            COMPONENT_NAME,
+            "upload-duration",
+            uploadDuration,
+            "milliseconds",
+          );
+
+          onUploadComplete?.(result.file);
+        } catch (error) {
+          // Log upload error
+          fileActivityLogger.logUploadError(
+            COMPONENT_NAME,
+            file.name,
+            error instanceof Error ? error : String(error),
+          );
+
+          setUploadProgress((prev) =>
+            prev.map((p) =>
+              p.filename === file.name
+                ? { ...p, status: "error", error: "Upload failed" }
+                : p,
+            ),
+          );
+          onUploadError?.(`Failed to upload ${file.name}`);
+        }
+      }
+
+      const totalProcessingTime = Date.now() - startTime;
+      fileActivityLogger.logPerformanceMetric(
+        COMPONENT_NAME,
+        "batch-upload-duration",
+        totalProcessingTime,
+        "milliseconds",
+      );
+
+      setIsUploading(false);
+    },
+    [onUploadComplete, onUploadError],
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -510,8 +517,9 @@ export default function FileUpload({
                     Upload Limits
                   </h3>
                   <p className="text-sm text-blue-700 mt-1">
-                    {rateLimitInfo.remaining} of {rateLimitInfo.total} uploads remaining. 
-                    Resets at {new Date(rateLimitInfo.resetTime).toLocaleTimeString()}.
+                    {rateLimitInfo.remaining} of {rateLimitInfo.total} uploads
+                    remaining. Resets at{" "}
+                    {new Date(rateLimitInfo.resetTime).toLocaleTimeString()}.
                   </p>
                 </div>
               </div>
