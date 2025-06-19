@@ -51,15 +51,17 @@ export type SupportedFileType =
   | "image/svg+xml"
   | "text/plain"
   | "text/markdown"
+  | "text/x-markdown"
   | "text/csv";
 
 export const MAX_FILE_SIZE = 2 * 1024 * 1024; // 10MB
 export const SUPPORTED_FILE_TYPES: SupportedFileType[] = [
   "image/jpeg",
-  "image/png", 
+  "image/png",
   "image/gif",
   "image/svg+xml",
   "text/plain",
   "text/markdown",
+  "text/x-markdown",
   "text/csv",
 ];
