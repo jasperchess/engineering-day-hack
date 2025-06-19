@@ -11,10 +11,17 @@ export interface FileItem {
   thumbnailUrl?: string;
 }
 
+export interface RateLimitInfo {
+  remaining: number;
+  resetTime: number;
+  total: number;
+}
+
 export interface FileUploadResponse {
   success: boolean;
   file?: FileItem;
   error?: string;
+  rateLimit?: RateLimitInfo;
 }
 
 export interface FileListResponse {

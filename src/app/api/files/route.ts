@@ -12,10 +12,34 @@ import {
 import { FileUploadResponse, FileListResponse } from "@/types/file";
 import { count, desc, eq } from "drizzle-orm";
 import { withAuth } from "@/app/auth/middleware";
+import { uploadRateLimit, getClientIdentifier } from "@/utils/rateLimit";
 
 // POST /api/files - Upload a new file
 export const POST = withAuth(async (request: NextRequest, session: any) => {
   try {
+    // Check rate limit first
+    const identifier = getClientIdentifier(request, session.user?.id);
+    const rateLimitResult = uploadRateLimit.check(identifier);
+    
+    if (!rateLimitResult.allowed) {
+      const resetTime = new Date(rateLimitResult.resetTime).toISOString();
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Rate limit exceeded. Try again after ${resetTime}`,
+          rateLimit: {
+            remaining: rateLimitResult.remaining,
+            resetTime: rateLimitResult.resetTime,
+            total: rateLimitResult.total
+          }
+        } as FileUploadResponse,
+        { 
+          status: 429,
+          headers: uploadRateLimit.getHeaders(rateLimitResult)
+        }
+      );
+    }
+
     const formData = await request.formData();
     const uploadedFile = formData.get("file") as File;
 
@@ -82,7 +106,14 @@ export const POST = withAuth(async (request: NextRequest, session: any) => {
         url: insertedFile.url,
         thumbnailUrl: insertedFile.thumbnailUrl,
       },
-    } as FileUploadResponse);
+      rateLimit: {
+        remaining: rateLimitResult.remaining,
+        resetTime: rateLimitResult.resetTime,
+        total: rateLimitResult.total
+      }
+    } as FileUploadResponse, {
+      headers: uploadRateLimit.getHeaders(rateLimitResult)
+    });
   } catch (error) {
     console.error("File upload error:", error);
     return NextResponse.json(
