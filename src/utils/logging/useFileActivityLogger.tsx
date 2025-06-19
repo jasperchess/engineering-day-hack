@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useRef } from "react";
 import { fileActivityLogger, FileActivity } from "./fileActivityLogger";
 
@@ -7,59 +9,24 @@ interface UseFileActivityLoggerOptions {
   trackPerformance?: boolean;
 }
 
-interface FileObject {
-  id?: string;
-  originalName?: string;
-  name?: string;
-  fileSize?: number;
-  size?: number;
-  mimeType?: string;
-  type?: string;
-  uploadStartTime?: number;
-}
-
-interface LogActivityOptions {
-  files?: File[];
-  file?: FileObject;
-  fileName?: string;
-  progress?: number;
-  error?: Error | string;
-  validationType?: string;
-  message?: string;
-  fileId?: string;
-  previewType?: string;
-  sortBy?: string;
-  sortOrder?: string;
-  fileCount?: number;
-  filterType?: string;
-  filterValue?: unknown;
-  resultCount?: number;
-  operation?: string;
-  fileIds?: string[];
-  success?: boolean;
-  level?: string;
-  userId?: string;
-  details?: Record<string, unknown>;
-}
-
 interface FileActivityLoggerHook {
   logUploadStart: (files: File[]) => void;
   logUploadProgress: (fileName: string, progress: number) => void;
-  logUploadComplete: (file: FileObject) => void;
+  logUploadComplete: (file: any) => void;
   logUploadError: (fileName: string, error: Error | string) => void;
   logValidationError: (
     fileName: string,
     validationType: string,
     message: string,
   ) => void;
-  logFileSelect: (file: FileObject) => void;
-  logFileDownload: (file: FileObject) => void;
+  logFileSelect: (file: any) => void;
+  logFileDownload: (file: any) => void;
   logFileDelete: (fileId: string, fileName?: string) => void;
-  logFilePreview: (file: FileObject, previewType: string) => void;
+  logFilePreview: (file: any, previewType: string) => void;
   logFileSort: (sortBy: string, sortOrder: string, fileCount: number) => void;
   logFileFilter: (
     filterType: string,
-    filterValue: unknown,
+    filterValue: any,
     resultCount: number,
   ) => void;
   logBatchOperation: (
@@ -68,7 +35,7 @@ interface FileActivityLoggerHook {
     success: boolean,
   ) => void;
   logPerformanceMetric: (metric: string, value: number, unit: string) => void;
-  logActivity: (activity: FileActivity, options?: LogActivityOptions) => void;
+  logActivity: (activity: FileActivity, options?: any) => void;
   startPerformanceTimer: (operation: string) => () => void;
 }
 
@@ -86,17 +53,16 @@ export function useFileActivityLogger(
   // Log component mount/unmount if auto-tracking is enabled
   useEffect(() => {
     if (enableAutoTracking) {
-      const mountTime = componentMountTime.current;
       fileActivityLogger.logPerformanceMetric(
         componentName,
         "component-mount",
-        mountTime,
+        componentMountTime.current,
         "timestamp",
       );
 
       return () => {
         const unmountTime = Date.now();
-        const mountDuration = unmountTime - mountTime;
+        const mountDuration = unmountTime - componentMountTime.current;
         fileActivityLogger.logPerformanceMetric(
           componentName,
           "component-unmount",
@@ -128,7 +94,7 @@ export function useFileActivityLogger(
   );
 
   const logUploadComplete = useCallback(
-    (file: FileObject) => {
+    (file: any) => {
       fileActivityLogger.logUploadComplete(componentName, file);
     },
     [componentName],
@@ -154,14 +120,14 @@ export function useFileActivityLogger(
   );
 
   const logFileSelect = useCallback(
-    (file: FileObject) => {
+    (file: any) => {
       fileActivityLogger.logFileSelect(componentName, file);
     },
     [componentName],
   );
 
   const logFileDownload = useCallback(
-    (file: FileObject) => {
+    (file: any) => {
       fileActivityLogger.logFileDownload(componentName, file);
     },
     [componentName],
@@ -175,7 +141,7 @@ export function useFileActivityLogger(
   );
 
   const logFilePreview = useCallback(
-    (file: FileObject, previewType: string) => {
+    (file: any, previewType: string) => {
       fileActivityLogger.logFilePreview(componentName, file, previewType);
     },
     [componentName],
@@ -194,7 +160,7 @@ export function useFileActivityLogger(
   );
 
   const logFileFilter = useCallback(
-    (filterType: string, filterValue: unknown, resultCount: number) => {
+    (filterType: string, filterValue: any, resultCount: number) => {
       fileActivityLogger.logFileFilter(
         componentName,
         filterType,
@@ -232,116 +198,24 @@ export function useFileActivityLogger(
   );
 
   const logActivity = useCallback(
-    (activity: FileActivity, options: LogActivityOptions = {}) => {
-      // Use the public method instead of accessing private methods
-      switch (activity) {
-        case "upload_start":
-          if (options.files) {
-            fileActivityLogger.logUploadStart(componentName, options.files);
-          }
-          break;
-        case "upload_progress":
-          if (options.fileName && typeof options.progress === "number") {
-            fileActivityLogger.logUploadProgress(
-              componentName,
-              options.fileName,
-              options.progress,
-            );
-          }
-          break;
-        case "upload_complete":
-          if (options.file) {
-            fileActivityLogger.logUploadComplete(componentName, options.file);
-          }
-          break;
-        case "upload_error":
-          if (options.fileName && options.error) {
-            fileActivityLogger.logUploadError(
-              componentName,
-              options.fileName,
-              options.error,
-            );
-          }
-          break;
-        case "validation_error":
-          if (options.fileName && options.validationType && options.message) {
-            fileActivityLogger.logValidationError(
-              componentName,
-              options.fileName,
-              options.validationType,
-              options.message,
-            );
-          }
-          break;
-        case "file_select":
-          if (options.file) {
-            fileActivityLogger.logFileSelect(componentName, options.file);
-          }
-          break;
-        case "file_download":
-          if (options.file) {
-            fileActivityLogger.logFileDownload(componentName, options.file);
-          }
-          break;
-        case "file_delete":
-          if (options.fileId) {
-            fileActivityLogger.logFileDelete(
-              componentName,
-              options.fileId,
-              options.fileName,
-            );
-          }
-          break;
-        case "file_preview":
-          if (options.file && options.previewType) {
-            fileActivityLogger.logFilePreview(
-              componentName,
-              options.file,
-              options.previewType,
-            );
-          }
-          break;
-        case "file_sort":
-          if (
-            options.sortBy &&
-            options.sortOrder &&
-            typeof options.fileCount === "number"
-          ) {
-            fileActivityLogger.logFileSort(
-              componentName,
-              options.sortBy,
-              options.sortOrder,
-              options.fileCount,
-            );
-          }
-          break;
-        case "file_filter":
-          if (options.filterType && typeof options.resultCount === "number") {
-            fileActivityLogger.logFileFilter(
-              componentName,
-              options.filterType,
-              options.filterValue,
-              options.resultCount,
-            );
-          }
-          break;
-        case "batch_operation":
-          if (
-            options.operation &&
-            options.fileIds &&
-            typeof options.success === "boolean"
-          ) {
-            fileActivityLogger.logBatchOperation(
-              componentName,
-              options.operation,
-              options.fileIds,
-              options.success,
-            );
-          }
-          break;
-        default:
-          console.warn(`Unknown activity type: ${activity}`);
-      }
+    (activity: FileActivity, options: any = {}) => {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        activity,
+        level: options.level || "info",
+        component: componentName,
+        sessionId: fileActivityLogger["sessionId"], // Access private property
+        userId: options.userId,
+        fileId: options.fileId,
+        fileName: options.fileName,
+        fileSize: options.fileSize,
+        fileType: options.fileType,
+        details: options.details,
+        error: options.error,
+      };
+
+      // Call the private addLog method
+      (fileActivityLogger as any).addLog(logEntry);
     },
     [componentName],
   );
@@ -390,17 +264,14 @@ export function useFileActivityLogger(
 
 // Higher-order component wrapper for automatic logging
 export function withFileActivityLogger<P extends object>(
-  WrappedComponent: React.ComponentType<P & WithFileActivityLoggerProps>,
+  WrappedComponent: React.ComponentType<P>,
   componentName: string,
   options: Omit<UseFileActivityLoggerOptions, "componentName"> = {},
-): React.ComponentType<P> {
-  const WithLoggingComponent: React.FC<P> = (props: P) => {
+) {
+  const WithLoggingComponent = (props: P) => {
     const logger = useFileActivityLogger({ componentName, ...options });
 
-    return React.createElement(WrappedComponent, {
-      ...props,
-      fileActivityLogger: logger,
-    });
+    return <WrappedComponent {...props} fileActivityLogger={logger} />;
   };
 
   WithLoggingComponent.displayName = `withFileActivityLogger(${componentName})`;
@@ -411,6 +282,3 @@ export function withFileActivityLogger<P extends object>(
 export interface WithFileActivityLoggerProps {
   fileActivityLogger?: FileActivityLoggerHook;
 }
-
-// Export types for external use
-export type { FileObject, LogActivityOptions };
