@@ -69,7 +69,7 @@ export default function FileUpload({
       const error = {
         type: "type" as const,
         message:
-          "Unsupported file type. Please upload images, PDFs, or documents.",
+          "Unsupported file type. Please upload JPG, PNG, GIF, SVG, TXT, MD, or CSV files.",
         filename: file.name,
       };
 
@@ -361,7 +361,7 @@ export default function FileUpload({
                   Drop files here or click to browse
                 </p>
                 <p className="text-sm text-gray-300 mt-2">
-                  Support for images, PDFs, and documents up to{" "}
+                  Support for JPG, PNG, GIF, SVG, TXT, MD, CSV files up to{" "}
                   {formatFileSize(MAX_FILE_SIZE)}
                 </p>
               </div>
