@@ -26,7 +26,7 @@ export default function LoginForm() {
         // Redirect will be handled by Better Auth
         window.location.href = "/";
       }
-    } catch (err: any) {
+    } catch {
       setError("Invalid email or password");
     } finally {
       setIsLoading(false);
@@ -40,7 +40,7 @@ export default function LoginForm() {
         provider: "github",
         callbackURL: "/",
       });
-    } catch (err: any) {
+    } catch {
       setError("GitHub sign in failed");
     } finally {
       setIsLoading(false);
@@ -54,7 +54,7 @@ export default function LoginForm() {
         provider: "google",
         callbackURL: "/",
       });
-    } catch (err: any) {
+    } catch {
       setError("Google sign in failed");
     } finally {
       setIsLoading(false);
@@ -62,11 +62,13 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">Sign In</h2>
+    <div className="max-w-md mx-auto p-6 bg-white/10 backdrop-blur-md rounded-lg shadow-2xl border border-white/20">
+      <h2 className="text-2xl font-bold mb-6 text-center text-white">
+        Sign In
+      </h2>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-3 bg-red-500/20 border border-red-400/50 text-red-300 rounded backdrop-blur-sm">
           {error}
         </div>
       )}
@@ -75,7 +77,7 @@ export default function LoginForm() {
         <div>
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-gray-300 mb-1"
           >
             Email
           </label>
@@ -85,7 +87,7 @@ export default function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-white placeholder-gray-400 backdrop-blur-sm"
             disabled={isLoading}
           />
         </div>
@@ -93,7 +95,7 @@ export default function LoginForm() {
         <div>
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-gray-300 mb-1"
           >
             Password
           </label>
@@ -103,7 +105,7 @@ export default function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-white placeholder-gray-400 backdrop-blur-sm"
             disabled={isLoading}
           />
         </div>
@@ -111,7 +113,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 px-4 rounded-md transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           {isLoading ? "Signing in..." : "Sign In"}
         </button>
@@ -120,10 +122,10 @@ export default function LoginForm() {
       <div className="mt-6">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
+            <div className="w-full border-t border-white/20" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">
+            <span className="px-2 rounded-sm bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-gray-300">
               Or continue with
             </span>
           </div>
@@ -133,7 +135,7 @@ export default function LoginForm() {
           <button
             onClick={handleGithubSignIn}
             disabled={isLoading}
-            className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-md shadow-sm bg-white/10 backdrop-blur-sm text-sm font-medium text-gray-300 hover:bg-white/20 disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -148,7 +150,7 @@ export default function LoginForm() {
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-md shadow-sm bg-white/10 backdrop-blur-sm text-sm font-medium text-gray-300 hover:bg-white/20 disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
