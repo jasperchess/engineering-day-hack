@@ -133,7 +133,7 @@ class FileActivityLogger {
     return undefined;
   }
 
-  private createLogEntry(
+  createLogEntry(
     activity: FileActivity,
     level: LogLevel,
     component: string,
@@ -150,7 +150,7 @@ class FileActivityLogger {
     };
   }
 
-  private addLog(log: FileActivityLog): void {
+  addLog(log: FileActivityLog): void {
     if (!this.isEnabled) return;
 
     this.logs.push(log);
@@ -638,6 +638,208 @@ class FileActivityLogger {
 
   disableLogging(): void {
     this.isEnabled = false;
+  }
+
+  // Generic logging method for any activity
+  logActivity(
+    activity: FileActivity,
+    component: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    const level: LogLevel = options.level || "info";
+    this.addLog(this.createLogEntry(activity, level, component, options));
+  }
+
+  // API Request logging
+  logApiRequest(
+    component: string,
+    method: string,
+    url: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("api_request", "info", component, {
+        ...options,
+        details: {
+          method,
+          url,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // API Response logging
+  logApiResponse(
+    component: string,
+    method: string,
+    url: string,
+    status: number,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    const level: LogLevel =
+      status >= 400 ? "error" : status >= 300 ? "warn" : "info";
+    this.addLog(
+      this.createLogEntry("api_response", level, component, {
+        ...options,
+        details: {
+          method,
+          url,
+          status,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // API Error logging
+  logApiError(
+    component: string,
+    method: string,
+    url: string,
+    error: Error | string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("api_error", "error", component, {
+        ...options,
+        error,
+        details: {
+          method,
+          url,
+          error: typeof error === "string" ? error : error.message,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // Page view logging
+  logPageView(
+    component: string,
+    page: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("page_view", "info", component, {
+        ...options,
+        details: {
+          page,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // Navigation logging
+  logNavigation(
+    component: string,
+    from: string,
+    to: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("navigation", "info", component, {
+        ...options,
+        details: {
+          from,
+          to,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // Form submission logging
+  logFormSubmit(
+    component: string,
+    formType: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("form_submit", "info", component, {
+        ...options,
+        details: {
+          formType,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // User interaction logging
+  logUserInteraction(
+    component: string,
+    interactionType: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("user_interaction", "debug", component, {
+        ...options,
+        details: {
+          interactionType,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // Search query logging
+  logSearchQuery(
+    component: string,
+    query: string,
+    resultCount: number,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("search_query", "info", component, {
+        ...options,
+        details: {
+          query,
+          resultCount,
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  // Component lifecycle logging
+  logComponentMount(
+    component: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("component_mount", "debug", component, {
+        ...options,
+        details: {
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
+  }
+
+  logComponentUnmount(
+    component: string,
+    options: Partial<FileActivityLog> = {},
+  ): void {
+    this.addLog(
+      this.createLogEntry("component_unmount", "debug", component, {
+        ...options,
+        details: {
+          timestamp: new Date().toISOString(),
+          ...options.details,
+        },
+      }),
+    );
   }
 }
 

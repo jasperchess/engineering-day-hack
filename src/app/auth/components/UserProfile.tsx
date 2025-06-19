@@ -1,9 +1,65 @@
 "use client";
 
 import { useSession, signOut } from "../client";
+import { fileActivityLogger } from "@/utils/logging";
+import { useEffect } from "react";
 
 export default function UserProfile() {
   const { data: session, isPending: isLoading } = useSession();
+
+  // Log session status and user profile view
+  useEffect(() => {
+    if (session) {
+      // Log successful session validation and user profile view
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_session_start",
+          "info",
+          "UserProfile",
+          {
+            userId: session.user.id,
+            details: {
+              email: session.user.email,
+              name: session.user.name,
+              hasImage: !!session.user.image,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_profile_view",
+          "info",
+          "UserProfile",
+          {
+            userId: session.user.id,
+            details: {
+              email: session.user.email,
+              name: session.user.name,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+    } else if (!isLoading) {
+      // Log session validation failure
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_session_end",
+          "warn",
+          "UserProfile",
+          {
+            details: {
+              reason: "no_valid_session",
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+    }
+  }, [session, isLoading]);
 
   if (isLoading) {
     return (
@@ -23,19 +79,133 @@ export default function UserProfile() {
   }
 
   const handleSignOut = async () => {
+    const logoutStartTime = Date.now();
+    const userId = session?.user.id;
+    const userEmail = session?.user.email;
+
+    // Log logout attempt
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("user_logout", "info", "UserProfile", {
+        userId: userId,
+        details: {
+          email: userEmail,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+
     try {
       const result = await signOut({
         fetchOptions: {
           onSuccess: () => {
+            const logoutDuration = Date.now() - logoutStartTime;
+
+            // Log successful logout
+            fileActivityLogger.addLog(
+              fileActivityLogger.createLogEntry(
+                "user_logout",
+                "info",
+                "UserProfile",
+                {
+                  userId: userId,
+                  details: {
+                    email: userEmail,
+                    success: true,
+                    duration: logoutDuration,
+                    timestamp: new Date().toISOString(),
+                  },
+                },
+              ),
+            );
+
+            // Log session end
+            fileActivityLogger.addLog(
+              fileActivityLogger.createLogEntry(
+                "user_session_end",
+                "info",
+                "UserProfile",
+                {
+                  userId: userId,
+                  details: {
+                    email: userEmail,
+                    reason: "user_logout",
+                    duration: logoutDuration,
+                    timestamp: new Date().toISOString(),
+                  },
+                },
+              ),
+            );
+
+            // Log navigation event
+            fileActivityLogger.addLog(
+              fileActivityLogger.createLogEntry(
+                "navigation",
+                "info",
+                "UserProfile",
+                {
+                  userId: userId,
+                  details: {
+                    from: window.location.pathname,
+                    to: "page_reload",
+                    reason: "successful_logout",
+                    timestamp: new Date().toISOString(),
+                  },
+                },
+              ),
+            );
+
             window.location.reload();
           },
         },
       });
 
       if (result.error) {
+        const logoutDuration = Date.now() - logoutStartTime;
+
+        // Log logout error
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry(
+            "user_logout",
+            "error",
+            "UserProfile",
+            {
+              userId: userId,
+              error: result.error,
+              details: {
+                email: userEmail,
+                error: result.error.message || "Unknown logout error",
+                duration: logoutDuration,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          ),
+        );
+
         console.error("Sign out error:", result.error);
       }
     } catch (error) {
+      const logoutDuration = Date.now() - logoutStartTime;
+
+      // Log logout exception
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_logout",
+          "error",
+          "UserProfile",
+          {
+            userId: userId,
+            error: error instanceof Error ? error : String(error),
+            details: {
+              email: userEmail,
+              error: error instanceof Error ? error.message : String(error),
+              duration: logoutDuration,
+              exceptionThrown: true,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+
       console.error("Sign out error:", error);
     }
   };

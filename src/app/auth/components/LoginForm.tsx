@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "../client";
+import { fileActivityLogger } from "@/utils/logging";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,30 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
   const [redirectUrl, setRedirectUrl] = useState("/files");
+
+  useEffect(() => {
+    // Log component mount and session start attempt
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry(
+        "component_mount",
+        "info",
+        "LoginForm",
+        {
+          details: { timestamp: new Date().toISOString() },
+        },
+      ),
+    );
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry(
+        "user_session_start",
+        "info",
+        "LoginForm",
+        {
+          details: { loginPage: true, timestamp: new Date().toISOString() },
+        },
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     // Check for callbackUrl parameter, default to /files
@@ -25,20 +50,104 @@ export default function LoginForm() {
     setIsLoading(true);
     setError("");
 
+    const loginStartTime = Date.now();
+
+    // Log login attempt start
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+        details: {
+          email: email,
+          loginMethod: "email",
+          timestamp: new Date().toISOString(),
+          redirectUrl: redirectUrl,
+        },
+      }),
+    );
+
     try {
       const result = await signIn.email({
         email,
         password,
       });
 
+      const loginDuration = Date.now() - loginStartTime;
+
       if (result.error) {
-        setError(result.error.message || "Invalid email or password");
+        const errorMessage =
+          result.error.message || "Invalid email or password";
+        setError(errorMessage);
+
+        // Log failed login attempt
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry(
+            "user_login_failed",
+            "error",
+            "LoginForm",
+            {
+              details: {
+                email: email,
+                error: errorMessage,
+                loginMethod: "email",
+                duration: loginDuration,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          ),
+        );
       } else {
+        // Log successful login
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+            details: {
+              email: email,
+              loginMethod: "email",
+              duration: loginDuration,
+              success: true,
+              redirectUrl: redirectUrl,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        );
+
+        // Log navigation event
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry("navigation", "info", "LoginForm", {
+            details: {
+              from: "/login",
+              to: redirectUrl,
+              reason: "successful_login",
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        );
+
         // Redirect to files page or callback URL
         window.location.href = redirectUrl;
       }
-    } catch {
-      setError("Invalid email or password");
+    } catch (error) {
+      const loginDuration = Date.now() - loginStartTime;
+      const errorMessage = "Invalid email or password";
+      setError(errorMessage);
+
+      // Log login exception
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_login_failed",
+          "error",
+          "LoginForm",
+          {
+            error: error instanceof Error ? error : errorMessage,
+            details: {
+              email: email,
+              error: errorMessage,
+              loginMethod: "email",
+              duration: loginDuration,
+              exceptionThrown: true,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -46,13 +155,64 @@ export default function LoginForm() {
 
   const handleGithubSignIn = async () => {
     setIsLoading(true);
+    const socialLoginStartTime = Date.now();
+
+    // Log social login attempt
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+        details: {
+          loginMethod: "github",
+          provider: "github",
+          callbackURL: redirectUrl,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+
     try {
       await signIn.social({
         provider: "github",
         callbackURL: redirectUrl,
       });
-    } catch {
-      setError("GitHub sign in failed");
+
+      const loginDuration = Date.now() - socialLoginStartTime;
+
+      // Log successful social login initiation
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+          details: {
+            loginMethod: "github",
+            provider: "github",
+            duration: loginDuration,
+            success: true,
+            callbackURL: redirectUrl,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+    } catch (error) {
+      const loginDuration = Date.now() - socialLoginStartTime;
+      const errorMessage = "GitHub sign in failed";
+      setError(errorMessage);
+
+      // Log failed social login
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_login_failed",
+          "error",
+          "LoginForm",
+          {
+            error: error instanceof Error ? error : errorMessage,
+            details: {
+              loginMethod: "github",
+              provider: "github",
+              error: errorMessage,
+              duration: loginDuration,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -60,13 +220,64 @@ export default function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    const socialLoginStartTime = Date.now();
+
+    // Log social login attempt
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+        details: {
+          loginMethod: "google",
+          provider: "google",
+          callbackURL: redirectUrl,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+
     try {
       await signIn.social({
         provider: "google",
         callbackURL: redirectUrl,
       });
-    } catch {
-      setError("Google sign in failed");
+
+      const loginDuration = Date.now() - socialLoginStartTime;
+
+      // Log successful social login initiation
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("user_login", "info", "LoginForm", {
+          details: {
+            loginMethod: "google",
+            provider: "google",
+            duration: loginDuration,
+            success: true,
+            callbackURL: redirectUrl,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+    } catch (error) {
+      const loginDuration = Date.now() - socialLoginStartTime;
+      const errorMessage = "Google sign in failed";
+      setError(errorMessage);
+
+      // Log failed social login
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_login_failed",
+          "error",
+          "LoginForm",
+          {
+            error: error instanceof Error ? error : errorMessage,
+            details: {
+              loginMethod: "google",
+              provider: "google",
+              error: errorMessage,
+              duration: loginDuration,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
     } finally {
       setIsLoading(false);
     }

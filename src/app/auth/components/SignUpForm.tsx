@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signUp, signIn } from "../client";
+import { fileActivityLogger } from "@/utils/logging";
 
 export default function SignUpForm() {
   const [name, setName] = useState("");
@@ -11,19 +12,92 @@ export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    // Log component mount and signup page access
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry(
+        "component_mount",
+        "info",
+        "SignUpForm",
+        {
+          details: { timestamp: new Date().toISOString() },
+        },
+      ),
+    );
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("page_view", "info", "SignUpForm", {
+        details: {
+          page: "/signup",
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
+    const signupStartTime = Date.now();
+
+    // Log signup attempt start
+    fileActivityLogger.addLog(
+      fileActivityLogger.createLogEntry("user_signup", "info", "SignUpForm", {
+        details: {
+          email: email,
+          name: name,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      const errorMessage = "Passwords do not match";
+      setError(errorMessage);
+
+      // Log form validation error
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "form_validation_error",
+          "warn",
+          "SignUpForm",
+          {
+            details: {
+              email: email,
+              error: errorMessage,
+              validationType: "password_match",
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+
       setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      const errorMessage = "Password must be at least 8 characters long";
+      setError(errorMessage);
+
+      // Log form validation error
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "form_validation_error",
+          "warn",
+          "SignUpForm",
+          {
+            details: {
+              email: email,
+              error: errorMessage,
+              validationType: "password_length",
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
+
       setIsLoading(false);
       return;
     }
@@ -37,29 +111,151 @@ export default function SignUpForm() {
       });
 
       if (signUpResult.error) {
-        setError(signUpResult.error.message || "Failed to create account");
+        const signupDuration = Date.now() - signupStartTime;
+        const errorMessage =
+          signUpResult.error.message || "Failed to create account";
+        setError(errorMessage);
+
+        // Log failed signup
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry(
+            "user_signup_failed",
+            "error",
+            "SignUpForm",
+            {
+              details: {
+                email: email,
+                name: name,
+                error: errorMessage,
+                duration: signupDuration,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          ),
+        );
+
         return;
       }
 
+      const signupDuration = Date.now() - signupStartTime;
+
+      // Log successful signup
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("user_signup", "info", "SignUpForm", {
+          details: {
+            email: email,
+            name: name,
+            success: true,
+            duration: signupDuration,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+
       // If signup successful, automatically sign in
+      const loginStartTime = Date.now();
+
+      // Log automatic login attempt after signup
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("user_login", "info", "SignUpForm", {
+          details: {
+            email: email,
+            loginMethod: "email",
+            autoLoginAfterSignup: true,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+
       const signInResult = await signIn.email({
         email,
         password,
       });
 
       if (signInResult.error) {
-        setError(
-          "Account created but failed to sign in. Please try signing in manually.",
+        const loginDuration = Date.now() - loginStartTime;
+        const errorMessage =
+          "Account created but failed to sign in. Please try signing in manually.";
+        setError(errorMessage);
+
+        // Log failed auto-login after signup
+        fileActivityLogger.addLog(
+          fileActivityLogger.createLogEntry(
+            "user_login_failed",
+            "error",
+            "SignUpForm",
+            {
+              details: {
+                email: email,
+                loginMethod: "email",
+                autoLoginAfterSignup: true,
+                error: errorMessage,
+                duration: loginDuration,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          ),
         );
+
         return;
       }
+
+      const loginDuration = Date.now() - loginStartTime;
+
+      // Log successful auto-login after signup
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("user_login", "info", "SignUpForm", {
+          details: {
+            email: email,
+            loginMethod: "email",
+            autoLoginAfterSignup: true,
+            success: true,
+            duration: loginDuration,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+
+      // Log navigation event
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry("navigation", "info", "SignUpForm", {
+          details: {
+            from: "/signup",
+            to: "/files",
+            reason: "successful_signup_and_login",
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
 
       // Redirect to files page after successful login
       window.location.href = "/files";
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      const signupDuration = Date.now() - signupStartTime;
+      const errorMessage = err.message || "Failed to create account";
+      setError(errorMessage);
+
+      // Log signup exception
+      fileActivityLogger.addLog(
+        fileActivityLogger.createLogEntry(
+          "user_signup_failed",
+          "error",
+          "SignUpForm",
+          {
+            error: err,
+            details: {
+              email: email,
+              name: name,
+              error: errorMessage,
+              duration: signupDuration,
+              exceptionThrown: true,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
