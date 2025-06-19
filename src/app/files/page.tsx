@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import FileList from "@/components/FileList";
 import FileDownload from "@/components/FileDownload";
 import { FileItem } from "@/types/file";
 import { useSession } from "@/app/auth/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function FilesPage() {
+function FilesPageContent() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const { data: session, isPending } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -61,6 +62,15 @@ export default function FilesPage() {
         );
 
         setFiles(processedFiles);
+
+        // Check if we should auto-select a file based on URL parameter
+        const fileId = searchParams.get("fileId");
+        if (fileId) {
+          const fileToSelect = processedFiles.find((f) => f.id === fileId);
+          if (fileToSelect) {
+            setSelectedFile(fileToSelect);
+          }
+        }
       } catch (err) {
         console.error("Error loading files:", err);
         setError(err instanceof Error ? err.message : "Failed to load files");
@@ -72,7 +82,7 @@ export default function FilesPage() {
     if (session) {
       loadFiles();
     }
-  }, [session, router]);
+  }, [session, router, searchParams]);
 
   // Show loading while checking authentication
   if (isPending) {
@@ -95,6 +105,10 @@ export default function FilesPage() {
 
   const handleFileSelect = (file: FileItem) => {
     setSelectedFile(file);
+    // Update URL to include fileId for deep linking
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("fileId", file.id);
+    router.replace(newUrl.pathname + newUrl.search);
   };
 
   const handleFileDownload = (file: FileItem) => {
@@ -128,6 +142,10 @@ export default function FilesPage() {
 
   const handleBackToList = () => {
     setSelectedFile(null);
+    // Remove fileId parameter from URL
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete("fileId");
+    router.replace(newUrl.pathname + newUrl.search);
   };
 
   // If a file is selected, show the download/preview view
@@ -303,5 +321,22 @@ export default function FilesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FilesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-2 text-gray-300">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <FilesPageContent />
+    </Suspense>
   );
 }

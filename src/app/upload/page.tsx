@@ -188,10 +188,10 @@ export default function UploadPage() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Link
-                          href="/files"
+                          href={`/files?fileId=${file.id}`}
                           className="text-sm bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent hover:from-blue-300 hover:to-purple-300 font-medium"
                         >
-                          View in Files
+                          View & Preview
                         </Link>
                       </div>
                     </div>
