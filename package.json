@@ -16,6 +16,8 @@
     "test:files": "node test-files-api.js"
   },
   "dependencies": {
+    "@types/archiver": "^6.0.3",
+    "archiver": "^7.0.1",
     "better-auth": "^1.2.8",
     "better-sqlite3": "^11.3.0",
     "drizzle-orm": "^0.36.4",

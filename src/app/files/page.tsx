@@ -114,10 +114,63 @@ function FilesPageContent() {
     router.replace(newUrl.pathname + newUrl.search);
   };
 
-  const handleFileDownload = (file: FileItem) => {
-    console.log("Downloading file:", file.originalName);
-    // In a real app, this would trigger the actual download
-    alert(`Downloading: ${file.originalName}`);
+  const handleFileDownload = async (file: FileItem) => {
+    try {
+      // Create a temporary link and trigger download
+      const link = document.createElement("a");
+      link.href = `/api/files/download/${file.id}`;
+      link.download = file.originalName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert(`Failed to download: ${file.originalName}`);
+    }
+  };
+
+  const handleBatchDownload = async (fileIds: string[]) => {
+    try {
+      // Get download URLs from the API
+      const response = await fetch("/api/files/download", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to prepare downloads");
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to prepare downloads");
+      }
+
+      // Download each file individually
+      for (const file of data.files) {
+        // Create a temporary link and trigger download
+        const link = document.createElement("a");
+        link.href = file.downloadUrl;
+        link.download = file.filename;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Small delay between downloads to avoid overwhelming the browser
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      console.error("Batch download error:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to download files",
+      );
+    }
   };
 
   const handleFileDelete = async (fileId: string) => {
@@ -196,6 +249,7 @@ function FilesPageContent() {
           onFileSelect={handleFileSelect}
           onFileDelete={handleFileDelete}
           onFileDownload={handleFileDownload}
+          onBatchDownload={handleBatchDownload}
         />
       </div>
 

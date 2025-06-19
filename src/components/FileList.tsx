@@ -11,6 +11,7 @@ interface FileListProps {
   onFileSelect?: (file: FileItem) => void;
   onFileDelete?: (fileId: string) => void;
   onFileDownload?: (file: FileItem) => void;
+  onBatchDownload?: (fileIds: string[]) => void;
 }
 
 export default function FileList({
@@ -20,6 +21,7 @@ export default function FileList({
   onFileSelect,
   onFileDelete,
   onFileDownload,
+  onBatchDownload,
 }: FileListProps) {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"name" | "date" | "size" | "type">(
@@ -185,6 +187,76 @@ export default function FileList({
     setSelectedFiles(newSelection);
   };
 
+  const handleSelectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map((f) => f.id)));
+    }
+  };
+
+  const handleBatchDownload = async () => {
+    const selectedFileIds = Array.from(selectedFiles);
+
+    if (selectedFileIds.length === 0) return;
+
+    try {
+      fileActivityLogger.logBatchOperation(
+        COMPONENT_NAME,
+        "download-selected",
+        selectedFileIds,
+        true,
+      );
+
+      // Use the onBatchDownload prop if provided, otherwise use the built-in logic
+      if (onBatchDownload) {
+        onBatchDownload(selectedFileIds);
+      } else {
+        // Get download URLs from the API
+        const response = await fetch("/api/files/download", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ fileIds: selectedFileIds }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to prepare downloads");
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || "Failed to prepare downloads");
+        }
+
+        // Download each file individually
+        for (const file of data.files) {
+          // Create a temporary link and trigger download
+          const link = document.createElement("a");
+          link.href = file.downloadUrl;
+          link.download = file.filename;
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Small delay between downloads to avoid overwhelming the browser
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+
+      // Clear selection after successful download
+      setSelectedFiles(new Set());
+    } catch (error) {
+      console.error("Batch download error:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to download files",
+      );
+    }
+  };
+
   const sortedFiles = sortFiles(files);
 
   // Log component state changes
@@ -340,48 +412,91 @@ export default function FileList({
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold text-white">Your Files</h2>
             <div className="flex items-center space-x-4">
+              {selectedFiles.size > 0 && (
+                <div className="text-sm text-blue-300 font-medium">
+                  {selectedFiles.size} selected
+                </div>
+              )}
               <div className="text-sm text-gray-300">
                 {files.length} {files.length === 1 ? "file" : "files"}
               </div>
             </div>
           </div>
 
-          {/* Sort Controls */}
-          <div className="flex items-center space-x-4 mb-6 pb-4 border-b border-white/20">
-            <span className="text-sm font-medium text-gray-300">Sort by:</span>
-            {[
-              { key: "name", label: "Name" },
-              { key: "date", label: "Date" },
-              { key: "size", label: "Size" },
-              { key: "type", label: "Type" },
-            ].map(({ key, label }) => (
+          {/* Controls Row */}
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/20">
+            {/* Sort Controls */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-300">
+                Sort by:
+              </span>
+              {[
+                { key: "name", label: "Name" },
+                { key: "date", label: "Date" },
+                { key: "size", label: "Size" },
+                { key: "type", label: "Type" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() =>
+                    handleSort(key as "name" | "date" | "size" | "type")
+                  }
+                  className={`text-sm px-3 py-1 rounded-md flex items-center space-x-1 ${
+                    sortBy === key
+                      ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-blue-300 border border-blue-400/30"
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <span>{label}</span>
+                  {sortBy === key && (
+                    <svg
+                      className={`w-4 h-4 transform ${sortOrder === "desc" ? "rotate-180" : ""}`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Selection Controls */}
+            <div className="flex items-center space-x-3">
               <button
-                key={key}
-                onClick={() =>
-                  handleSort(key as "name" | "date" | "size" | "type")
-                }
-                className={`text-sm px-3 py-1 rounded-md flex items-center space-x-1 ${
-                  sortBy === key
-                    ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-blue-300 border border-blue-400/30"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
+                onClick={handleSelectAll}
+                className="text-sm text-gray-300 hover:text-white transition-colors"
               >
-                <span>{label}</span>
-                {sortBy === key && (
+                {selectedFiles.size === files.length
+                  ? "Deselect All"
+                  : "Select All"}
+              </button>
+              {selectedFiles.size > 0 && (
+                <button
+                  onClick={handleBatchDownload}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm font-medium flex items-center space-x-2"
+                >
                   <svg
-                    className={`w-4 h-4 transform ${sortOrder === "desc" ? "rotate-180" : ""}`}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
                     <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                )}
-              </button>
-            ))}
+                  <span>Download Selected ({selectedFiles.size})</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Files Grid */}
@@ -389,22 +504,56 @@ export default function FileList({
             {sortedFiles.map((file) => (
               <div
                 key={file.id}
-                className={`border border-white/20 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer backdrop-blur-sm ${
+                className={`border border-white/20 rounded-lg p-4 hover:shadow-md transition-all backdrop-blur-sm ${
                   selectedFiles.has(file.id)
-                    ? "ring-2 ring-blue-400 bg-blue-500/20"
+                    ? "ring-2 ring-blue-400 bg-blue-500/20 border-blue-400/50"
                     : "hover:bg-white/5 bg-white/5"
                 }`}
-                onClick={() => {
-                  fileActivityLogger.logFileSelect(COMPONENT_NAME, file);
-                  onFileSelect?.(file);
-                }}
               >
                 <div className="flex items-start justify-between">
+                  {/* File Content */}
                   <div className="flex items-start space-x-3 flex-1 min-w-0">
+                    {/* Selection Checkbox */}
+                    <div className="flex-shrink-0 pt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFileSelection(file.id);
+                        }}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                          selectedFiles.has(file.id)
+                            ? "bg-blue-500 border-blue-500 text-white"
+                            : "border-gray-400 hover:border-blue-400"
+                        }`}
+                        title="Select file"
+                      >
+                        {selectedFiles.has(file.id) && (
+                          <svg
+                            className="w-3 h-3"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {/* File Icon */}
                     <div className="flex-shrink-0">
                       {getFileIcon(file.mimeType)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    {/* File Info */}
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => {
+                        fileActivityLogger.logFileSelect(COMPONENT_NAME, file);
+                        onFileSelect?.(file);
+                      }}
+                    >
                       <h3
                         className="text-sm font-medium text-white truncate"
                         title={file.originalName}
@@ -423,6 +572,7 @@ export default function FileList({
                     </div>
                   </div>
 
+                  {/* Action Buttons */}
                   <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
                     <button
                       onClick={(e) => {
@@ -447,28 +597,6 @@ export default function FileList({
                           strokeLinejoin="round"
                           strokeWidth={2}
                           d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFileSelection(file.id);
-                      }}
-                      className="p-1 text-gray-400 hover:text-white rounded transition-colors"
-                      title="Select"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
                         />
                       </svg>
                     </button>
@@ -506,47 +634,6 @@ export default function FileList({
               </div>
             ))}
           </div>
-
-          {/* Batch Actions */}
-          {selectedFiles.size > 0 && (
-            <div className="mt-6 pt-4 border-t border-white/20">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-300">
-                  {selectedFiles.size}{" "}
-                  {selectedFiles.size === 1 ? "file" : "files"} selected
-                </span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      fileActivityLogger.logBatchOperation(
-                        COMPONENT_NAME,
-                        "clear-selection",
-                        Array.from(selectedFiles),
-                        true,
-                      );
-                      setSelectedFiles(new Set());
-                    }}
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    Clear selection
-                  </button>
-                  <button
-                    onClick={() => {
-                      fileActivityLogger.logBatchOperation(
-                        COMPONENT_NAME,
-                        "download-selected",
-                        Array.from(selectedFiles),
-                        true,
-                      );
-                    }}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm font-medium"
-                  >
-                    Download Selected
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
