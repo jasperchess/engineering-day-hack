@@ -22,28 +22,10 @@ export default function FilesPage() {
     }
   }, [session, isPending, router]);
 
-  // Show loading while checking authentication
-  if (isPending) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if not authenticated
-  if (!session) {
-    return null;
-  }
-
-  // Load files from API
-  useEffect(() => {
+   useEffect(() => {
     const loadFiles = async () => {
       if (!session) return;
-      
+
       try {
         setLoading(true);
         const response = await fetch("/api/files");
@@ -90,6 +72,26 @@ export default function FilesPage() {
     }
   }, [session, router]);
 
+
+  // Show loading while checking authentication
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null;
+  }
+
+  // Load files from API
+
   const handleFileSelect = (file: FileItem) => {
     setSelectedFile(file);
   };
@@ -106,11 +108,11 @@ export default function FilesPage() {
         const response = await fetch(`/api/files/${fileId}`, {
           method: 'DELETE',
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to delete file');
         }
-        
+
         const data = await response.json();
         if (data.success) {
           setFiles(prev => prev.filter(f => f.id !== fileId));
