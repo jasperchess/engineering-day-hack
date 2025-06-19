@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { UPLOAD_DIR } from "@/utils/fileUtils";
+import { withAuth } from "@/app/auth/middleware";
+import { db } from "@/app/auth/db";
+import { files } from "@/app/auth/schema";
+import { eq, and } from "drizzle-orm";
 
 // GET /uploads/[filename] - Serve uploaded files
 export async function GET(
   request: NextRequest,
   { params }: { params: { filename: string } },
 ) {
+  return withAuth(async (req: NextRequest, session: { user: { id: string } }) => {
   try {
     const { filename } = params;
 
@@ -19,6 +24,17 @@ export async function GET(
     const sanitizedFilename = path.basename(filename);
     if (sanitizedFilename !== filename) {
       return new NextResponse("Invalid filename", { status: 400 });
+    }
+
+    // Check if user owns this file
+    const [fileRecord] = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.filename, sanitizedFilename), eq(files.uploadedBy, session.user.id)))
+      .limit(1);
+
+    if (!fileRecord) {
+      return new NextResponse("File not found or access denied", { status: 404 });
     }
 
     const filePath = path.join(UPLOAD_DIR, sanitizedFilename);
@@ -73,4 +89,5 @@ export async function GET(
     console.error("File serving error:", error);
     return new NextResponse("Internal server error", { status: 500 });
   }
+  })(request);
 }
