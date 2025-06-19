@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "../client";
 
 export default function LoginForm() {
@@ -8,6 +9,16 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const searchParams = useSearchParams();
+  const [redirectUrl, setRedirectUrl] = useState("/files");
+
+  useEffect(() => {
+    // Check for callbackUrl parameter, default to /files
+    const callbackUrl = searchParams.get("callbackUrl");
+    if (callbackUrl) {
+      setRedirectUrl(callbackUrl);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,8 +34,8 @@ export default function LoginForm() {
       if (result.error) {
         setError(result.error.message || "Invalid email or password");
       } else {
-        // Redirect will be handled by Better Auth
-        window.location.href = "/";
+        // Redirect to files page or callback URL
+        window.location.href = redirectUrl;
       }
     } catch {
       setError("Invalid email or password");
@@ -38,7 +49,7 @@ export default function LoginForm() {
     try {
       await signIn.social({
         provider: "github",
-        callbackURL: "/",
+        callbackURL: redirectUrl,
       });
     } catch {
       setError("GitHub sign in failed");
@@ -52,7 +63,7 @@ export default function LoginForm() {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: redirectUrl,
       });
     } catch {
       setError("Google sign in failed");
