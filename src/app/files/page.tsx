@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import FileList from "@/components/FileList";
 import FileDownload from "@/components/FileDownload";
 import Header from "@/components/Header";
+import SearchBar from "@/components/SearchBar";
 import { FileItem } from "@/types/file";
 import { useSession } from "@/app/auth/client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -215,7 +216,6 @@ function FilesPageContent() {
         <Header
           currentPage={selectedFile.originalName}
           showUploadButton={true}
-          showSearchBar={true}
         />
 
         <div className="py-8 relative z-10">
@@ -238,10 +238,15 @@ function FilesPageContent() {
       <div className="absolute bottom-20 right-10 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
 
       {/* Header */}
-      <Header currentPage="Files" showUploadButton={true} showSearchBar={true} />
+      <Header currentPage="Files" showUploadButton={true} />
 
       {/* Main Content */}
       <div className="py-8 relative z-10">
+        {/* Search Bar */}
+        <div className="max-w-6xl mx-auto px-6 mb-6">
+          <SearchBar placeholder="Search by filename..." className="max-w-md mx-auto" />
+        </div>
+        
         <FileList
           files={files}
           loading={loading}

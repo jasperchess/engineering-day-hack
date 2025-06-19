@@ -41,7 +41,7 @@ export default function SearchBar({
         router.push(url);
         
         setTimeout(() => setLoading(false), 200);
-      }, 300); // 300ms debounce delay
+      }, 1000); // 1 second debounce delay
 
       return () => clearTimeout(timeoutId);
     },
