@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import { FileItem } from "@/types/file";
-import { useRouter } from "next/router";
-import { useSession } from "../auth";
+import { useRouter } from "next/navigation";
+import { useSession } from "../auth/client";
 import Link from "next/link";
 
 export default function UploadPage() {
@@ -16,7 +16,7 @@ export default function UploadPage() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isPending && !session) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [session, isPending, router]);
 
