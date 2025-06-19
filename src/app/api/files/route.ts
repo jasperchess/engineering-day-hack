@@ -10,10 +10,11 @@ import {
   getFileTypeCategory,
 } from "@/utils/fileUtils";
 import { FileUploadResponse, FileListResponse } from "@/types/file";
-import { count, desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
+import { withAuth } from "@/app/auth/middleware";
 
 // POST /api/files - Upload a new file
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, session: any) => {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
       url,
       createdAt: now,
       updatedAt: now,
-      // uploadedBy: user?.id, // TODO: Get from session when auth is implemented
+      uploadedBy: session.user.id,
     };
 
     const [insertedFile] = await db
@@ -89,27 +90,31 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
-// GET /api/files - Get all files
-export async function GET(request: NextRequest) {
+// GET /api/files - Get user's files
+export const GET = withAuth(async (request: NextRequest, session: any) => {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
-    // Get files from database with pagination
-    const allFiles = await db
+    // Get files from database with pagination, filtered by user
+    const userFiles = await db
       .select()
       .from(files)
+      .where(eq(files.uploadedBy, session.user.id))
       .limit(limit)
       .offset(offset)
       .orderBy(desc(files.uploadDate));
 
-    // Get total count
-    const totalCountResult = await db.select({ count: count() }).from(files);
+    // Get total count for user's files
+    const totalCountResult = await db
+      .select({ count: count() })
+      .from(files)
+      .where(eq(files.uploadedBy, session.user.id));
 
-    const fileList = allFiles.map((file: File) => ({
+    const fileList = userFiles.map((file: File) => ({
       id: file.id,
       filename: file.filename,
       originalName: file.originalName,
@@ -139,4 +144,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

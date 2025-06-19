@@ -4,100 +4,75 @@ import React, { useState, useEffect } from 'react';
 import FileList from '@/components/FileList';
 import FileDownload from '@/components/FileDownload';
 import { FileItem } from '@/types/file';
-
-// Mock data for demonstration
-const mockFiles: FileItem[] = [
-  {
-    id: '1',
-    filename: 'document1.pdf',
-    originalName: 'Project Proposal.pdf',
-    fileSize: 2048576, // 2MB
-    fileType: 'pdf',
-    mimeType: 'application/pdf',
-    uploadDate: new Date('2024-01-15T10:30:00Z'),
-    uploadedBy: 'john.doe@example.com',
-    url: '/mock/files/document1.pdf'
-  },
-  {
-    id: '2',
-    filename: 'image1.jpg',
-    originalName: 'Team Photo.jpg',
-    fileSize: 1536000, // 1.5MB
-    fileType: 'image',
-    mimeType: 'image/jpeg',
-    uploadDate: new Date('2024-01-14T15:45:00Z'),
-    uploadedBy: 'jane.smith@example.com',
-    url: '/mock/files/image1.jpg'
-  },
-  {
-    id: '3',
-    filename: 'spreadsheet1.xlsx',
-    originalName: 'Budget Analysis Q1.xlsx',
-    fileSize: 524288, // 512KB
-    fileType: 'spreadsheet',
-    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    uploadDate: new Date('2024-01-13T09:15:00Z'),
-    uploadedBy: 'alice.johnson@example.com',
-    url: '/mock/files/spreadsheet1.xlsx'
-  },
-  {
-    id: '4',
-    filename: 'text1.txt',
-    originalName: 'Meeting Notes.txt',
-    fileSize: 8192, // 8KB
-    fileType: 'text',
-    mimeType: 'text/plain',
-    uploadDate: new Date('2024-01-12T14:20:00Z'),
-    uploadedBy: 'bob.wilson@example.com',
-    url: '/mock/files/text1.txt'
-  },
-  {
-    id: '5',
-    filename: 'image2.png',
-    originalName: 'Dashboard Screenshot.png',
-    fileSize: 3072000, // 3MB
-    fileType: 'image',
-    mimeType: 'image/png',
-    uploadDate: new Date('2024-01-11T11:00:00Z'),
-    uploadedBy: 'charlie.brown@example.com',
-    url: '/mock/files/image2.png'
-  },
-  {
-    id: '6',
-    filename: 'document2.docx',
-    originalName: 'User Manual v2.docx',
-    fileSize: 1048576, // 1MB
-    fileType: 'document',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    uploadDate: new Date('2024-01-10T16:30:00Z'),
-    uploadedBy: 'diana.davis@example.com',
-    url: '/mock/files/document2.docx'
-  }
-];
+import { useSession } from '@/app/auth/client';
+import { useRouter } from 'next/navigation';
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
 
-  // Simulate API call to load files
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push('/login');
+    }
+  }, [session, isPending, router]);
+
+  // Show loading while checking authentication
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null;
+  }
+
+  // Load files from API
   useEffect(() => {
     const loadFiles = async () => {
+      if (!session) return;
+      
       try {
         setLoading(true);
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setFiles(mockFiles);
+        const response = await fetch('/api/files');
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to fetch files');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+          setFiles(data.files);
+        } else {
+          throw new Error(data.error || 'Failed to load files');
+        }
       } catch (err) {
-        setError('Failed to load files');
+        setError(err instanceof Error ? err.message : 'Failed to load files');
       } finally {
         setLoading(false);
       }
     };
 
-    loadFiles();
-  }, []);
+    if (session) {
+      loadFiles();
+    }
+  }, [session, router]);
 
   const handleFileSelect = (file: FileItem) => {
     setSelectedFile(file);
@@ -112,12 +87,22 @@ export default function FilesPage() {
   const handleFileDelete = async (fileId: string) => {
     if (confirm('Are you sure you want to delete this file?')) {
       try {
-        // Simulate API call to delete file
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setFiles(prev => prev.filter(f => f.id !== fileId));
-        console.log('File deleted:', fileId);
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete file');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+          setFiles(prev => prev.filter(f => f.id !== fileId));
+        } else {
+          throw new Error(data.error || 'Failed to delete file');
+        }
       } catch (err) {
-        alert('Failed to delete file');
+        alert(err instanceof Error ? err.message : 'Failed to delete file');
       }
     }
   };
