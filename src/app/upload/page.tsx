@@ -1,12 +1,41 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileUpload from '@/components/FileUpload';
 import { FileItem } from '@/types/file';
+import { useSession } from '@/app/auth/client';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function UploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([]);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push('/login');
+    }
+  }, [session, isPending, router]);
+
+  // Show loading while checking authentication
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null;
+  }
 
   const handleUploadComplete = (file: FileItem) => {
     setUploadedFiles(prev => [...prev, file]);
@@ -29,9 +58,9 @@ export default function UploadPage() {
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">File Vault</h1>
               <nav className="flex items-center space-x-4 text-sm">
-                <a href="/" className="text-gray-500 hover:text-gray-700">
+                <Link href="/files" className="text-gray-500 hover:text-gray-700">
                   Files
-                </a>
+                </Link>
                 <span className="text-gray-300">/</span>
                 <span className="text-blue-600 font-medium">Upload</span>
               </nav>
@@ -109,12 +138,12 @@ export default function UploadPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <a
+                        <Link
                           href="/files"
                           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
                           View in Files
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -124,12 +153,12 @@ export default function UploadPage() {
                     <p className="text-sm text-gray-500">
                       {uploadedFiles.length} {uploadedFiles.length === 1 ? 'file' : 'files'} uploaded in this session
                     </p>
-                    <a
+                    <Link
                       href="/files"
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                     >
                       View All Files
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>
