@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FileItem } from "@/types/file";
 import { fileActivityLogger } from "@/utils/logging";
 
@@ -130,7 +130,7 @@ export default function FileDownload({
     }
   };
 
-  const loadPreview = async () => {
+  const loadPreview = useCallback(async () => {
     if (!canPreview(file.mimeType)) {
       fileActivityLogger.logFilePreview(COMPONENT_NAME, file, "not-supported");
       return;
@@ -144,7 +144,7 @@ export default function FileDownload({
       COMPONENT_NAME,
       "preview-load-start",
       previewStartTime,
-      "timestamp"
+      "timestamp",
     );
 
     try {
@@ -168,7 +168,7 @@ export default function FileDownload({
         COMPONENT_NAME,
         "preview-load-success",
         previewLoadTime,
-        "milliseconds"
+        "milliseconds",
       );
     } catch (error) {
       const errorMessage = "Failed to load preview";
@@ -176,17 +176,17 @@ export default function FileDownload({
       fileActivityLogger.logUploadError(
         COMPONENT_NAME,
         file.originalName,
-        error instanceof Error ? error : errorMessage
+        error instanceof Error ? error : errorMessage,
       );
     } finally {
       setIsPreviewLoading(false);
     }
-  };
+  }, [file, canPreview]);
 
   useEffect(() => {
     fileActivityLogger.logFileSelect(COMPONENT_NAME, file);
     loadPreview();
-  }, [file.id]);
+  }, [file, loadPreview]);
 
   const handleDownload = () => {
     fileActivityLogger.logFileDownload(COMPONENT_NAME, file);
@@ -196,7 +196,7 @@ export default function FileDownload({
       COMPONENT_NAME,
       "download-start",
       downloadStartTime,
-      "timestamp"
+      "timestamp",
     );
 
     onDownload?.(file);
@@ -216,16 +216,16 @@ export default function FileDownload({
         COMPONENT_NAME,
         "download-duration",
         downloadDuration,
-        "milliseconds"
+        "milliseconds",
       );
     }, 100);
   };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-white/20">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-4">
               {onBack && (
@@ -235,11 +235,11 @@ export default function FileDownload({
                       COMPONENT_NAME,
                       "back-navigation",
                       1,
-                      "count"
+                      "count",
                     );
                     onBack();
                   }}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-50"
+                  className="p-2 text-gray-400 hover:text-white rounded-md hover:bg-white/10 transition-colors"
                   title="Back to files"
                 >
                   <svg
@@ -260,12 +260,12 @@ export default function FileDownload({
               <div className="flex-shrink-0">{getFileIcon(file.mimeType)}</div>
               <div className="flex-1 min-w-0">
                 <h1
-                  className="text-2xl font-semibold text-gray-900 truncate"
+                  className="text-2xl font-semibold text-white truncate"
                   title={file.originalName}
                 >
                   {file.originalName}
                 </h1>
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-500">
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-300">
                   <div>
                     <span className="font-medium">Size:</span>{" "}
                     {formatFileSize(file.fileSize)}
@@ -284,7 +284,7 @@ export default function FileDownload({
             <div className="flex items-center space-x-2 flex-shrink-0">
               <button
                 onClick={handleDownload}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium inline-flex items-center"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -309,21 +309,19 @@ export default function FileDownload({
         <div className="p-6">
           {canPreview(file.mimeType) ? (
             <div>
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Preview
-              </h2>
+              <h2 className="text-lg font-medium text-white mb-4">Preview</h2>
 
               {isPreviewLoading && (
-                <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-center h-64 bg-white/5 rounded-lg">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                    <p className="text-sm text-gray-500">Loading preview...</p>
+                    <p className="text-sm text-gray-300">Loading preview...</p>
                   </div>
                 </div>
               )}
 
               {previewError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-red-900/50 backdrop-blur-sm border border-red-500/50 rounded-lg p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <svg
@@ -339,10 +337,10 @@ export default function FileDownload({
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">
+                      <h3 className="text-sm font-medium text-red-200">
                         Preview Error
                       </h3>
-                      <p className="text-sm text-red-700 mt-1">
+                      <p className="text-sm text-red-300 mt-1">
                         {previewError}
                       </p>
                     </div>
@@ -351,9 +349,9 @@ export default function FileDownload({
               )}
 
               {!isPreviewLoading && !previewError && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="border border-white/20 rounded-lg overflow-hidden">
                   {isImage(file.mimeType) && previewUrl && (
-                    <div className="bg-gray-50 p-4">
+                    <div className="bg-white/5 p-4">
                       <img
                         src={previewUrl}
                         alt={file.originalName}
@@ -365,7 +363,7 @@ export default function FileDownload({
                           fileActivityLogger.logUploadError(
                             COMPONENT_NAME,
                             file.originalName,
-                            errorMessage
+                            errorMessage,
                           );
                         }}
                       />
@@ -373,7 +371,7 @@ export default function FileDownload({
                   )}
 
                   {isPDF(file.mimeType) && previewUrl && (
-                    <div className="bg-gray-50">
+                    <div className="bg-white/5">
                       <iframe
                         src={previewUrl}
                         className="w-full h-96 border-0"
@@ -384,7 +382,7 @@ export default function FileDownload({
                           fileActivityLogger.logUploadError(
                             COMPONENT_NAME,
                             file.originalName,
-                            errorMessage
+                            errorMessage,
                           );
                         }}
                       />
@@ -392,8 +390,8 @@ export default function FileDownload({
                   )}
 
                   {isText(file.mimeType) && textContent && (
-                    <div className="bg-gray-50">
-                      <pre className="text-sm text-gray-900 p-4 overflow-auto whitespace-pre-wrap max-h-96">
+                    <div className="bg-white/5">
+                      <pre className="text-sm text-white p-4 overflow-auto whitespace-pre-wrap max-h-96">
                         {textContent}
                       </pre>
                     </div>
@@ -406,16 +404,16 @@ export default function FileDownload({
               <div className="flex justify-center mb-4">
                 {getFileIcon(file.mimeType)}
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-white mb-2">
                 Preview not available
               </h3>
-              <p className="text-gray-500 mb-6">
-                This file type doesn't support preview. You can download it to
-                view the content.
+              <p className="text-gray-300 mb-6">
+                This file type doesn&apos;t support preview. You can download it
+                to view the content.
               </p>
               <button
                 onClick={handleDownload}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium inline-flex items-center"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -437,38 +435,36 @@ export default function FileDownload({
         </div>
 
         {/* File Details */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
-            File Details
-          </h3>
+        <div className="px-6 py-4 bg-white/5 border-t border-white/20">
+          <h3 className="text-sm font-medium text-white mb-3">File Details</h3>
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div>
-              <dt className="font-medium text-gray-700">File Name</dt>
-              <dd className="text-gray-900 truncate" title={file.originalName}>
+              <dt className="font-medium text-gray-300">File Name</dt>
+              <dd className="text-white truncate" title={file.originalName}>
                 {file.originalName}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-gray-700">File Size</dt>
-              <dd className="text-gray-900">{formatFileSize(file.fileSize)}</dd>
+              <dt className="font-medium text-gray-300">File Size</dt>
+              <dd className="text-white">{formatFileSize(file.fileSize)}</dd>
             </div>
             <div>
-              <dt className="font-medium text-gray-700">File Type</dt>
-              <dd className="text-gray-900">{file.mimeType}</dd>
+              <dt className="font-medium text-gray-300">File Type</dt>
+              <dd className="text-white">{file.mimeType}</dd>
             </div>
             <div>
-              <dt className="font-medium text-gray-700">Upload Date</dt>
-              <dd className="text-gray-900">{formatDate(file.uploadDate)}</dd>
+              <dt className="font-medium text-gray-300">Upload Date</dt>
+              <dd className="text-white">{formatDate(file.uploadDate)}</dd>
             </div>
             {file.uploadedBy && (
               <div>
-                <dt className="font-medium text-gray-700">Uploaded By</dt>
-                <dd className="text-gray-900">{file.uploadedBy}</dd>
+                <dt className="font-medium text-gray-300">Uploaded By</dt>
+                <dd className="text-white">{file.uploadedBy}</dd>
               </div>
             )}
             <div>
-              <dt className="font-medium text-gray-700">File ID</dt>
-              <dd className="text-gray-900 font-mono text-xs">{file.id}</dd>
+              <dt className="font-medium text-gray-300">File ID</dt>
+              <dd className="text-white font-mono text-xs">{file.id}</dd>
             </div>
           </dl>
         </div>

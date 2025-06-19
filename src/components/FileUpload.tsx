@@ -10,7 +10,7 @@ import {
 import { fileActivityLogger } from "@/utils/logging";
 
 interface FileUploadProps {
-  onUploadComplete?: (file: any) => void;
+  onUploadComplete?: (file: unknown) => void;
   onUploadError?: (error: string) => void;
 }
 
@@ -56,7 +56,11 @@ export default function FileUpload({
     }
 
     // Check file type
-    if (!SUPPORTED_FILE_TYPES.includes(file.type as any)) {
+    if (
+      !SUPPORTED_FILE_TYPES.includes(
+        file.type as (typeof SUPPORTED_FILE_TYPES)[number],
+      )
+    ) {
       const error = {
         type: "type" as const,
         message:
@@ -239,20 +243,23 @@ export default function FileUpload({
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      fileActivityLogger.logPerformanceMetric(
-        COMPONENT_NAME,
-        "drag-drop-files",
-        files.length,
-        "count",
-      );
-      handleFiles(files);
-    }
-  }, []);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileActivityLogger.logPerformanceMetric(
+          COMPONENT_NAME,
+          "drag-drop-files",
+          files.length,
+          "count",
+        );
+        handleFiles(files);
+      }
+    },
+    [handleFiles],
+  );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -288,9 +295,9 @@ export default function FileUpload({
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
         <div className="p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+          <h2 className="text-2xl font-semibold text-white mb-6">
             Upload Files
           </h2>
 
@@ -300,8 +307,8 @@ export default function FileUpload({
               relative border-2 border-dashed rounded-lg p-8 text-center transition-colors
               ${
                 isDragOver
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-300 hover:border-gray-400"
+                  ? "border-blue-400 bg-blue-500/20"
+                  : "border-white/30 hover:border-white/50"
               }
               ${isUploading ? "pointer-events-none opacity-50" : ""}
             `}
@@ -320,7 +327,7 @@ export default function FileUpload({
             <div className="space-y-4">
               <div className="flex justify-center">
                 <svg
-                  className="w-12 h-12 text-gray-400"
+                  className="w-12 h-12 text-gray-300"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -335,10 +342,10 @@ export default function FileUpload({
               </div>
 
               <div>
-                <p className="text-lg font-medium text-gray-900">
+                <p className="text-lg font-medium text-white">
                   Drop files here or click to browse
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-300 mt-2">
                   Support for images, PDFs, and documents up to{" "}
                   {formatFileSize(MAX_FILE_SIZE)}
                 </p>
@@ -352,7 +359,7 @@ export default function FileUpload({
               {validationErrors.map((error, index) => (
                 <div
                   key={index}
-                  className="bg-red-50 border border-red-200 rounded-md p-4"
+                  className="bg-red-900/50 backdrop-blur-sm border border-red-500/50 rounded-md p-4"
                 >
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -369,10 +376,10 @@ export default function FileUpload({
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">
+                      <h3 className="text-sm font-medium text-red-200">
                         {error.filename}
                       </h3>
-                      <p className="text-sm text-red-700 mt-1">
+                      <p className="text-sm text-red-300 mt-1">
                         {error.message}
                       </p>
                     </div>
@@ -386,13 +393,13 @@ export default function FileUpload({
           {uploadProgress.length > 0 && (
             <div className="mt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-white">
                   Upload Progress
                 </h3>
                 {!isUploading && (
                   <button
                     onClick={clearProgress}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Clear
                   </button>
@@ -401,9 +408,12 @@ export default function FileUpload({
 
               <div className="space-y-4">
                 {uploadProgress.map((progress, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4">
+                  <div
+                    key={index}
+                    className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10"
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">
+                      <span className="text-sm font-medium text-white truncate">
                         {progress.filename}
                       </span>
                       <div className="flex items-center space-x-2">
@@ -433,27 +443,27 @@ export default function FileUpload({
                             />
                           </svg>
                         )}
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-300">
                           {progress.progress}%
                         </span>
                       </div>
                     </div>
 
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${
                           progress.status === "completed"
-                            ? "bg-green-500"
+                            ? "bg-gradient-to-r from-green-400 to-green-500"
                             : progress.status === "error"
-                              ? "bg-red-500"
-                              : "bg-blue-500"
+                              ? "bg-gradient-to-r from-red-400 to-red-500"
+                              : "bg-gradient-to-r from-blue-500 to-purple-600"
                         }`}
                         style={{ width: `${progress.progress}%` }}
                       />
                     </div>
 
                     {progress.error && (
-                      <p className="text-sm text-red-600 mt-2">
+                      <p className="text-sm text-red-300 mt-2">
                         {progress.error}
                       </p>
                     )}
@@ -466,7 +476,7 @@ export default function FileUpload({
           {/* Success Message */}
           {uploadProgress.some((p) => p.status === "completed") &&
             !isUploading && (
-              <div className="mt-6 bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="mt-6 bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-md p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg
@@ -482,10 +492,10 @@ export default function FileUpload({
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-green-800">
+                    <h3 className="text-sm font-medium text-green-200">
                       Upload Successful
                     </h3>
-                    <p className="text-sm text-green-700 mt-1">
+                    <p className="text-sm text-green-300 mt-1">
                       Your files have been uploaded successfully.
                     </p>
                   </div>
