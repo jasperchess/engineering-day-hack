@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FileItem } from "@/types/file";
+import { fileActivityLogger } from '@/utils/logging';
 
 interface FileListProps {
   files?: FileItem[];
@@ -25,6 +26,8 @@ export default function FileList({
     "date",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const COMPONENT_NAME = "FileList";
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -143,9 +146,18 @@ export default function FileList({
     });
   };
 
-  const handleSort = (field: "name" | "date" | "size" | "type") => {
+  const handleSort = (field: 'name' | 'date' | 'size' | 'type') => {
+    const newSortOrder = sortBy === field ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'asc';
+
+    fileActivityLogger.logFileSort(
+      COMPONENT_NAME,
+      field,
+      newSortOrder,
+      files.length
+    );
+
     if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      setSortOrder(newSortOrder);
     } else {
       setSortBy(field);
       setSortOrder("asc");
@@ -154,15 +166,52 @@ export default function FileList({
 
   const toggleFileSelection = (fileId: string) => {
     const newSelection = new Set(selectedFiles);
+    const isSelecting = !newSelection.has(fileId);
+
     if (newSelection.has(fileId)) {
       newSelection.delete(fileId);
     } else {
       newSelection.add(fileId);
     }
+
+    fileActivityLogger.logPerformanceMetric(
+      COMPONENT_NAME,
+      isSelecting ? "file-selected" : "file-deselected",
+      newSelection.size,
+      "count"
+    );
+
     setSelectedFiles(newSelection);
   };
 
   const sortedFiles = sortFiles(files);
+
+  // Log component state changes
+  useEffect(() => {
+    if (loading) {
+      fileActivityLogger.logPerformanceMetric(
+        COMPONENT_NAME,
+        "loading-state",
+        1,
+        "boolean"
+      );
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    if (error) {
+      fileActivityLogger.logUploadError(COMPONENT_NAME, "component-error", error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    fileActivityLogger.logPerformanceMetric(
+      COMPONENT_NAME,
+      "files-loaded",
+      files.length,
+      "count"
+    );
+  }, [files.length]);
 
   // Loading State
   if (loading) {
@@ -338,7 +387,10 @@ export default function FileList({
                     ? "ring-2 ring-blue-500 bg-blue-50"
                     : "hover:bg-gray-50"
                 }`}
-                onClick={() => onFileSelect?.(file)}
+                onClick={() => {
+                  fileActivityLogger.logFileSelect(COMPONENT_NAME, file);
+                  onFileSelect?.(file);
+                }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -368,6 +420,7 @@ export default function FileList({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        fileActivityLogger.logFileDownload(COMPONENT_NAME, file);
                         onFileDownload?.(file);
                       }}
                       className="p-1 text-gray-400 hover:text-blue-500 rounded"
@@ -413,6 +466,7 @@ export default function FileList({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          fileActivityLogger.logFileDelete(COMPONENT_NAME, file.id, file.originalName);
                           onFileDelete(file.id);
                         }}
                         className="p-1 text-gray-400 hover:text-red-500 rounded"
@@ -449,12 +503,30 @@ export default function FileList({
                 </span>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setSelectedFiles(new Set())}
+                    onClick={() => {
+                      fileActivityLogger.logBatchOperation(
+                        COMPONENT_NAME,
+                        "clear-selection",
+                        Array.from(selectedFiles),
+                        true
+                      );
+                      setSelectedFiles(new Set());
+                    }}
                     className="text-sm text-gray-500 hover:text-gray-700"
                   >
                     Clear selection
                   </button>
-                  <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                  <button
+                    onClick={() => {
+                      fileActivityLogger.logBatchOperation(
+                        COMPONENT_NAME,
+                        "download-selected",
+                        Array.from(selectedFiles),
+                        true
+                      );
+                    }}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
                     Download Selected
                   </button>
                 </div>

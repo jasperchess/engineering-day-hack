@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FileItem } from "@/types/file";
+import { fileActivityLogger } from "@/utils/logging";
 
 interface FileDownloadProps {
   file: FileItem;
@@ -18,6 +19,8 @@ export default function FileDownload({
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string>("");
   const [textContent, setTextContent] = useState<string>("");
+
+  const COMPONENT_NAME = "FileDownload";
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -128,35 +131,74 @@ export default function FileDownload({
   };
 
   const loadPreview = async () => {
-    if (!canPreview(file.mimeType)) return;
+    if (!canPreview(file.mimeType)) {
+      fileActivityLogger.logFilePreview(COMPONENT_NAME, file, "not-supported");
+      return;
+    }
 
+    const previewStartTime = Date.now();
     setIsPreviewLoading(true);
     setPreviewError("");
 
+    fileActivityLogger.logPerformanceMetric(
+      COMPONENT_NAME,
+      "preview-load-start",
+      previewStartTime,
+      "timestamp"
+    );
+
     try {
       if (isText(file.mimeType)) {
+        fileActivityLogger.logFilePreview(COMPONENT_NAME, file, "text");
         // Mock loading text content
         await new Promise((resolve) => setTimeout(resolve, 1000));
         setTextContent(
           `This is a preview of ${file.originalName}.\n\nContent would be loaded from the actual file here...`,
         );
       } else if (isImage(file.mimeType) || isPDF(file.mimeType)) {
+        const previewType = isImage(file.mimeType) ? "image" : "pdf";
+        fileActivityLogger.logFilePreview(COMPONENT_NAME, file, previewType);
         // Mock loading preview URL
         await new Promise((resolve) => setTimeout(resolve, 1000));
         setPreviewUrl(file.url || `/api/files/${file.id}/preview`);
       }
+
+      const previewLoadTime = Date.now() - previewStartTime;
+      fileActivityLogger.logPerformanceMetric(
+        COMPONENT_NAME,
+        "preview-load-success",
+        previewLoadTime,
+        "milliseconds"
+      );
     } catch (error) {
-      setPreviewError("Failed to load preview");
+      const errorMessage = "Failed to load preview";
+      setPreviewError(errorMessage);
+      fileActivityLogger.logUploadError(
+        COMPONENT_NAME,
+        file.originalName,
+        error instanceof Error ? error : errorMessage
+      );
     } finally {
       setIsPreviewLoading(false);
     }
   };
 
   useEffect(() => {
+    fileActivityLogger.logFileSelect(COMPONENT_NAME, file);
     loadPreview();
   }, [file.id]);
 
   const handleDownload = () => {
+    fileActivityLogger.logFileDownload(COMPONENT_NAME, file);
+
+    const downloadStartTime = Date.now();
+    fileActivityLogger.logPerformanceMetric(
+      COMPONENT_NAME,
+      "download-start",
+      downloadStartTime,
+      "timestamp"
+    );
+
     onDownload?.(file);
 
     // Create a temporary download link
@@ -166,6 +208,17 @@ export default function FileDownload({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Log download completion (in a real app, you'd track actual completion)
+    setTimeout(() => {
+      const downloadDuration = Date.now() - downloadStartTime;
+      fileActivityLogger.logPerformanceMetric(
+        COMPONENT_NAME,
+        "download-duration",
+        downloadDuration,
+        "milliseconds"
+      );
+    }, 100);
   };
 
   return (
@@ -177,7 +230,15 @@ export default function FileDownload({
             <div className="flex items-start space-x-4">
               {onBack && (
                 <button
-                  onClick={onBack}
+                  onClick={() => {
+                    fileActivityLogger.logPerformanceMetric(
+                      COMPONENT_NAME,
+                      "back-navigation",
+                      1,
+                      "count"
+                    );
+                    onBack();
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-50"
                   title="Back to files"
                 >
@@ -298,7 +359,15 @@ export default function FileDownload({
                         alt={file.originalName}
                         className="max-w-full h-auto mx-auto rounded shadow-sm"
                         style={{ maxHeight: "500px" }}
-                        onError={() => setPreviewError("Failed to load image")}
+                        onError={() => {
+                          const errorMessage = "Failed to load image";
+                          setPreviewError(errorMessage);
+                          fileActivityLogger.logUploadError(
+                            COMPONENT_NAME,
+                            file.originalName,
+                            errorMessage
+                          );
+                        }}
                       />
                     </div>
                   )}
@@ -309,7 +378,15 @@ export default function FileDownload({
                         src={previewUrl}
                         className="w-full h-96 border-0"
                         title={`Preview of ${file.originalName}`}
-                        onError={() => setPreviewError("Failed to load PDF")}
+                        onError={() => {
+                          const errorMessage = "Failed to load PDF";
+                          setPreviewError(errorMessage);
+                          fileActivityLogger.logUploadError(
+                            COMPONENT_NAME,
+                            file.originalName,
+                            errorMessage
+                          );
+                        }}
                       />
                     </div>
                   )}
