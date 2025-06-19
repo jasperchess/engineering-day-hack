@@ -26,7 +26,7 @@ export default function LoginForm() {
         // Redirect will be handled by Better Auth
         window.location.href = "/";
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Invalid email or password");
     } finally {
       setIsLoading(false);
@@ -40,7 +40,7 @@ export default function LoginForm() {
         provider: "github",
         callbackURL: "/",
       });
-    } catch (err) {
+    } catch (err: any) {
       setError("GitHub sign in failed");
     } finally {
       setIsLoading(false);
@@ -54,7 +54,7 @@ export default function LoginForm() {
         provider: "google",
         callbackURL: "/",
       });
-    } catch (err) {
+    } catch (err: any) {
       setError("Google sign in failed");
     } finally {
       setIsLoading(false);

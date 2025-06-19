@@ -4,7 +4,10 @@ import { sqlite } from "./db";
 import * as schema from "./schema";
 
 export const auth = betterAuth({
-  database: sqlite,
+  database: drizzleAdapter(sqlite, {
+    provider: "sqlite",
+    schema: schema,
+  }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,

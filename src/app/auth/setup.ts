@@ -1,13 +1,13 @@
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { db } from "./db";
+import { sql } from "drizzle-orm";
+import { db, sqlite } from "./db";
 import * as schema from "./schema";
 
 export async function setupDatabase() {
   try {
     console.log("Setting up database...");
 
-    // Create tables if they don't exist
-    await db.run(`
+    // Create tables using raw SQL on the sqlite instance
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS user (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -19,7 +19,7 @@ export async function setupDatabase() {
       )
     `);
 
-    await db.run(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS session (
         id TEXT PRIMARY KEY,
         expiresAt INTEGER NOT NULL,
@@ -33,7 +33,7 @@ export async function setupDatabase() {
       )
     `);
 
-    await db.run(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS account (
         id TEXT PRIMARY KEY,
         accountId TEXT NOT NULL,
@@ -52,7 +52,7 @@ export async function setupDatabase() {
       )
     `);
 
-    await db.run(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS verification (
         id TEXT PRIMARY KEY,
         identifier TEXT NOT NULL,
@@ -63,7 +63,7 @@ export async function setupDatabase() {
       )
     `);
 
-    await db.run(`
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS files (
         id TEXT PRIMARY KEY,
         filename TEXT NOT NULL,
@@ -90,7 +90,6 @@ export async function setupDatabase() {
 }
 
 // Auto-setup on import in development
-if (process.env.NODE
-_ENV === "development") {
+if (process.env.NODE_ENV === "development") {
   setupDatabase().catch(console.error);
 }
