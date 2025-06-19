@@ -26,18 +26,12 @@ A secure, AI-powered file management system built with Next.js, featuring user a
    - Copy `.env.example` to `.env.local`
    - Set up authentication tables and file management schema
 
-3. **Configure environment variables:**
-   ```bash
-   # Edit .env.local with your specific values
-   cp .env.example .env.local
-   ```
-
-4. **Start the development server:**
+3. **Start the development server:**
    ```bash
    npm run dev
    ```
 
-5. **Open your browser:**
+4. **Open your browser:**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## 🧪 Testing the Application
