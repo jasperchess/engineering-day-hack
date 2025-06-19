@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import { FileItem } from "@/types/file";
+import { useRouter } from "next/router";
+import { useSession } from "../auth";
+import Link from "next/link";
 
 export default function UploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([]);
